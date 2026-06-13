@@ -1,0 +1,132 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+import '../config/app_config.dart';
+import '../models/app_user.dart';
+import '../models/auth_session.dart';
+import '../models/organization.dart';
+
+class ApiException implements Exception {
+  const ApiException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+class ApiClient {
+  const ApiClient({this.token});
+
+  final String? token;
+
+  Map<String, String> get _headers {
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Token $token',
+    };
+  }
+
+  Future<AuthSession> register({
+    required String username,
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/auth/register/'),
+      headers: _headers,
+      body: jsonEncode({
+        'username': username,
+        'email': email,
+        'password': password,
+      }),
+    );
+    return AuthSession.fromJson(_decode(response, expected: 201));
+  }
+
+  Future<AuthSession> login({
+    required String username,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/auth/login/'),
+      headers: _headers,
+      body: jsonEncode({'username': username, 'password': password}),
+    );
+    return AuthSession.fromJson(_decode(response));
+  }
+
+  Future<void> logout() async {
+    if (token == null) {
+      return;
+    }
+
+    await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/auth/logout/'),
+      headers: _headers,
+    );
+  }
+
+  Future<AppUser> me() async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/auth/me/'),
+      headers: _headers,
+    );
+    return AppUser.fromJson(_decode(response));
+  }
+
+  Future<Organization> createOrganization({required String name}) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/organizations/create/'),
+      headers: _headers,
+      body: jsonEncode({'name': name}),
+    );
+    return Organization.fromJson(_decode(response, expected: 201));
+  }
+
+  Future<Organization> joinOrganization({required String joinCode}) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/organizations/join/'),
+      headers: _headers,
+      body: jsonEncode({'join_code': joinCode}),
+    );
+    return Organization.fromJson(_decode(response));
+  }
+
+  Map<String, dynamic> _decode(http.Response response, {int expected = 200}) {
+    if (response.statusCode == expected) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  String _extractError(http.Response response) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        if (decoded['detail'] != null) {
+          return decoded['detail'].toString();
+        }
+        if (decoded['non_field_errors'] is List) {
+          return (decoded['non_field_errors'] as List).join(' ');
+        }
+        final messages = <String>[];
+        decoded.forEach((key, value) {
+          if (value is List) {
+            messages.add('$key: ${value.join(' ')}');
+          } else {
+            messages.add('$key: $value');
+          }
+        });
+        if (messages.isNotEmpty) {
+          return messages.join('\n');
+        }
+      }
+    } catch (_) {
+      return 'Backend returned ${response.statusCode}.';
+    }
+    return 'Backend returned ${response.statusCode}.';
+  }
+}
