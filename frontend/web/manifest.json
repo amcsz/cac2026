@@ -1,0 +1,12 @@
+{
+  "name": "CAC 2026",
+  "short_name": "CAC 2026",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "description": "Flutter frontend for the CAC 2026 app.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}
