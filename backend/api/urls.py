@@ -3,11 +3,13 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     CreateOrganizationView,
+    EmergencyReportView,
     HealthView,
     JoinOrganizationView,
     LoginView,
     LogoutView,
     MeView,
+    OrganizationMembersView,
     RegisterView,
     TodoViewSet,
 )
@@ -24,5 +26,7 @@ urlpatterns = [
     path("auth/me/", MeView.as_view(), name="me"),
     path("organizations/create/", CreateOrganizationView.as_view(), name="create-organization"),
     path("organizations/join/", JoinOrganizationView.as_view(), name="join-organization"),
+    path("organizations/members/", OrganizationMembersView.as_view(), name="organization-members"),
+    path("reports/", EmergencyReportView.as_view(), name="reports"),
 ]
 urlpatterns += router.urls

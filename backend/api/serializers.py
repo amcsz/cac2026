@@ -6,7 +6,7 @@ from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
-from .models import Organization, OrganizationMembership, Todo
+from .models import EmergencyReport, Organization, OrganizationMembership, Todo
 
 
 User = get_user_model()
@@ -28,18 +28,77 @@ class OrganizationSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "join_code", "member_count", "created_at"]
 
 
+class OrganizationMembershipSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    is_owner = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrganizationMembership
+        fields = ["id", "user_id", "username", "email", "role", "joined_at", "is_owner"]
+        read_only_fields = ["id", "user_id", "username", "email", "joined_at", "is_owner"]
+
+    def get_is_owner(self, membership):
+        return membership.organization.owner_id == membership.user_id
+
+
+class UpdateOrganizationMembershipRoleSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField()
+    role = serializers.ChoiceField(choices=OrganizationMembership.ROLE_CHOICES)
+
+
+class EmergencyReportSerializer(serializers.ModelSerializer):
+    reported_by_username = serializers.CharField(source="reported_by.username", read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+
+    class Meta:
+        model = EmergencyReport
+        fields = [
+            "id",
+            "emergency_type",
+            "location",
+            "details",
+            "created_at",
+            "reported_by_username",
+            "organization_name",
+        ]
+        read_only_fields = ["id", "created_at", "reported_by_username", "organization_name"]
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        membership = getattr(user, "organization_membership", None)
+        if membership is None:
+            raise serializers.ValidationError("You must belong to an organization before submitting an emergency report.")
+        return attrs
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        membership = user.organization_membership
+        validated_data["reported_by"] = user
+        validated_data["organization"] = membership.organization
+        return super().create(validated_data)
+
+
 class UserSerializer(serializers.ModelSerializer):
     organization = serializers.SerializerMethodField()
+    organization_role = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "organization"]
+        fields = ["id", "username", "email", "organization", "organization_role"]
 
     def get_organization(self, user):
         membership = getattr(user, "organization_membership", None)
         if membership is None:
             return None
         return OrganizationSerializer(membership.organization).data
+
+    def get_organization_role(self, user):
+        membership = getattr(user, "organization_membership", None)
+        if membership is None:
+            return None
+        return membership.role
 
 
 class AuthResponseSerializer(serializers.Serializer):
@@ -112,7 +171,11 @@ class CreateOrganizationSerializer(serializers.Serializer):
                 join_code=self._generate_join_code(),
                 owner=user,
             )
-            OrganizationMembership.objects.create(user=user, organization=organization)
+            OrganizationMembership.objects.create(
+                user=user,
+                organization=organization,
+                role=OrganizationMembership.ROLE_ADMINISTRATOR,
+            )
         return organization
 
     def _generate_join_code(self):
@@ -150,6 +213,7 @@ class JoinOrganizationSerializer(serializers.Serializer):
             return OrganizationMembership.objects.create(
                 user=user,
                 organization=validated_data["organization"],
+                role=OrganizationMembership.ROLE_MEMBER,
             )
         except IntegrityError as exc:
             raise serializers.ValidationError("You already belong to an organization.") from exc

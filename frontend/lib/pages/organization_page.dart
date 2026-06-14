@@ -16,7 +16,7 @@ class OrganizationPage extends StatefulWidget {
 
   final String token;
   final String username;
-  final ValueChanged<Organization> onOrganizationReady;
+  final Future<void> Function(Organization) onOrganizationReady;
   final VoidCallback onLogout;
 
   @override
@@ -66,7 +66,7 @@ class _OrganizationPageState extends State<OrganizationPage> {
 
     try {
       final organization = await action();
-      widget.onOrganizationReady(organization);
+      await widget.onOrganizationReady(organization);
     } on ApiException catch (error) {
       setState(() => _error = error.message);
     } catch (_) {

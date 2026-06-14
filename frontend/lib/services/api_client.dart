@@ -94,6 +94,79 @@ class ApiClient {
     return Organization.fromJson(_decode(response));
   }
 
+  Future<List<OrganizationMembership>> fetchOrganizationMembers() async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/organizations/members/'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as List<dynamic>;
+      return decoded
+          .map((item) => OrganizationMembership.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<OrganizationMembership> updateOrganizationMemberRole({
+    required int userId,
+    required String role,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('${AppConfig.apiBaseUrl}/organizations/members/'),
+      headers: _headers,
+      body: jsonEncode({'user_id': userId, 'role': role}),
+    );
+
+    if (response.statusCode == 200) {
+      return OrganizationMembership.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+      );
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<EmergencyReport> submitEmergencyReport({
+    required String emergencyType,
+    required String location,
+    required String details,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/reports/'),
+      headers: _headers,
+      body: jsonEncode({
+        'emergency_type': emergencyType,
+        'location': location,
+        'details': details,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      return EmergencyReport.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<List<EmergencyReport>> fetchEmergencyReports() async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/reports/'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as List<dynamic>;
+      return decoded
+          .map((item) => EmergencyReport.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
   Map<String, dynamic> _decode(http.Response response, {int expected = 200}) {
     if (response.statusCode == expected) {
       return jsonDecode(response.body) as Map<String, dynamic>;

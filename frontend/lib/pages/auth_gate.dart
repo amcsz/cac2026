@@ -59,18 +59,32 @@ class _AuthGateState extends State<AuthGate> {
     setState(() => _session = session);
   }
 
-  void _setOrganization(Organization organization) {
+  Future<void> _setOrganization(Organization organization) async {
     final session = _session;
     if (session == null) {
       return;
     }
 
-    setState(() {
-      _session = AuthSession(
-        token: session.token,
-        user: session.user.copyWith(organization: organization),
-      );
-    });
+    try {
+      final refreshedUser = await ApiClient(token: session.token).me();
+      if (mounted) {
+        setState(() {
+          _session = AuthSession(
+            token: session.token,
+            user: refreshedUser.copyWith(organization: organization),
+          );
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _session = AuthSession(
+            token: session.token,
+            user: session.user.copyWith(organization: organization),
+          );
+        });
+      }
+    }
   }
 
   Future<void> _logout() async {
@@ -116,6 +130,7 @@ class _AuthGateState extends State<AuthGate> {
     return LoggedInPage(
       user: session.user,
       organization: organization,
+      token: session.token,
       onLogout: _logout,
     );
   }
