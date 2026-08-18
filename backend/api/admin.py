@@ -1,13 +1,6 @@
 from django.contrib import admin
 
-from .models import Organization, OrganizationMembership, Todo
-
-
-@admin.register(Todo)
-class TodoAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "completed", "created_at")
-    list_filter = ("completed",)
-    search_fields = ("title",)
+from .models import GlobalAlert, Organization, OrganizationMembership
 
 
 @admin.register(Organization)
@@ -20,3 +13,9 @@ class OrganizationAdmin(admin.ModelAdmin):
 class OrganizationMembershipAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "organization", "joined_at")
     search_fields = ("user__username", "organization__name")
+
+
+@admin.register(GlobalAlert)
+class GlobalAlertAdmin(admin.ModelAdmin):
+    list_display = ("id", "headline", "organization", "created_by", "created_at")
+    search_fields = ("headline", "message", "organization__name", "created_by__username")

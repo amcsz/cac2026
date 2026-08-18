@@ -1,4 +1,4 @@
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -6,17 +6,4 @@ class Migration(migrations.Migration):
 
     dependencies = []
 
-    operations = [
-        migrations.CreateModel(
-            name="Todo",
-            fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("title", models.CharField(max_length=255)),
-                ("completed", models.BooleanField(default=False)),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-            ],
-            options={
-                "ordering": ["-created_at"],
-            },
-        ),
-    ]
+    operations = []

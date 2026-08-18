@@ -103,7 +103,8 @@ class ApiClient {
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body) as List<dynamic>;
       return decoded
-          .map((item) => OrganizationMembership.fromJson(item as Map<String, dynamic>))
+          .map((item) =>
+              OrganizationMembership.fromJson(item as Map<String, dynamic>))
           .toList();
     }
 
@@ -145,7 +146,8 @@ class ApiClient {
     );
 
     if (response.statusCode == 201) {
-      return EmergencyReport.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      return EmergencyReport.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
     }
 
     throw ApiException(_extractError(response));
@@ -162,6 +164,58 @@ class ApiClient {
       return decoded
           .map((item) => EmergencyReport.fromJson(item as Map<String, dynamic>))
           .toList();
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<AlertSummary> fetchAlertSummary() async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/alerts/summary/'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return AlertSummary.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+      );
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<GlobalAlert?> fetchGlobalAlert() async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/alerts/global/'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final alertJson = decoded['alert'];
+      if (alertJson == null) {
+        return null;
+      }
+      return GlobalAlert.fromJson(alertJson as Map<String, dynamic>);
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<GlobalAlert> publishGlobalAlert({
+    required String headline,
+    required String message,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/alerts/global/'),
+      headers: _headers,
+      body: jsonEncode({'headline': headline, 'message': message}),
+    );
+
+    if (response.statusCode == 201) {
+      return GlobalAlert.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+      );
     }
 
     throw ApiException(_extractError(response));

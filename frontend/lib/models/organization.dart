@@ -106,3 +106,58 @@ class EmergencyReport {
     }
   }
 }
+
+class AlertSummary {
+  const AlertSummary({
+    required this.headline,
+    required this.summary,
+    required this.draftMessage,
+    required this.reportCount,
+    required this.generatedAt,
+    required this.windowHours,
+  });
+
+  final String headline;
+  final String summary;
+  final String draftMessage;
+  final int reportCount;
+  final String generatedAt;
+  final int windowHours;
+
+  factory AlertSummary.fromJson(Map<String, dynamic> json) {
+    return AlertSummary(
+      headline: json['headline'] as String? ?? '',
+      summary: json['summary'] as String? ?? '',
+      draftMessage: json['draft_message'] as String? ?? '',
+      reportCount: json['report_count'] as int? ?? 0,
+      generatedAt: json['generated_at'] as String? ?? '',
+      windowHours: json['window_hours'] as int? ?? 24,
+    );
+  }
+}
+
+class GlobalAlert {
+  const GlobalAlert({
+    required this.id,
+    required this.headline,
+    required this.message,
+    required this.createdAt,
+    required this.createdByUsername,
+  });
+
+  final int id;
+  final String headline;
+  final String message;
+  final String createdAt;
+  final String createdByUsername;
+
+  factory GlobalAlert.fromJson(Map<String, dynamic> json) {
+    return GlobalAlert(
+      id: json['id'] as int,
+      headline: json['headline'] as String? ?? '',
+      message: json['message'] as String? ?? '',
+      createdAt: json['created_at'] as String? ?? '',
+      createdByUsername: json['created_by_username'] as String? ?? '',
+    );
+  }
+}

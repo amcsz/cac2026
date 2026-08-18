@@ -8,5 +8,6 @@ done
 
 python manage.py makemigrations
 python manage.py migrate --noinput
+python manage.py seed_initial_data
 
 exec "$@"

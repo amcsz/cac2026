@@ -1,19 +1,21 @@
-from rest_framework import status, viewsets
+from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import EmergencyReport, OrganizationMembership, Todo
+from .ai_summary import AiSummaryUnavailable, generate_recent_report_summary
+from .models import EmergencyReport, GlobalAlert, OrganizationMembership
 from .serializers import (
     AuthResponseSerializer,
     CreateOrganizationSerializer,
     EmergencyReportSerializer,
+    GlobalAlertSerializer,
     JoinOrganizationSerializer,
     LoginSerializer,
     OrganizationMembershipSerializer,
     OrganizationSerializer,
+    PublishGlobalAlertSerializer,
     RegisterSerializer,
-    TodoSerializer,
     UpdateOrganizationMembershipRoleSerializer,
     UserSerializer,
 )
@@ -159,6 +161,55 @@ class EmergencyReportView(APIView):
         return Response(EmergencyReportSerializer(report).data, status=status.HTTP_201_CREATED)
 
 
-class TodoViewSet(viewsets.ModelViewSet):
-    queryset = Todo.objects.all()
-    serializer_class = TodoSerializer
+class AlertSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        membership = getattr(request.user, "organization_membership", None)
+        if membership is None or membership.role != OrganizationMembership.ROLE_ADMINISTRATOR:
+            return Response(
+                {"detail": "Only administrators can view alert summaries."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            summary = generate_recent_report_summary(membership.organization)
+        except AiSummaryUnavailable as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        return Response(summary)
+
+
+class GlobalAlertView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        membership = getattr(request.user, "organization_membership", None)
+        if membership is None:
+            return Response(
+                {"detail": "You must belong to an organization to view alerts."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        alert = GlobalAlert.objects.filter(organization=membership.organization).select_related("created_by").first()
+        if alert is None:
+            return Response({"alert": None})
+        return Response({"alert": GlobalAlertSerializer(alert).data})
+
+    def post(self, request):
+        membership = getattr(request.user, "organization_membership", None)
+        if membership is None or membership.role != OrganizationMembership.ROLE_ADMINISTRATOR:
+            return Response(
+                {"detail": "Only administrators can publish global alerts."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = PublishGlobalAlertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        alert = GlobalAlert.objects.create(
+            organization=membership.organization,
+            created_by=request.user,
+            headline=serializer.validated_data["headline"],
+            message=serializer.validated_data["message"],
+        )
+        return Response(GlobalAlertSerializer(alert).data, status=status.HTTP_201_CREATED)

@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import '../models/app_user.dart';
 import '../models/organization.dart';
 import '../services/api_client.dart';
+import '../widgets/global_alert_banner.dart';
 import '../widgets/info_row.dart';
+import 'logged_in/alerts_tab.dart';
+import 'logged_in/manage_tab.dart';
+import 'logged_in/report_tab.dart';
 
 class LoggedInPage extends StatefulWidget {
   const LoggedInPage({
@@ -27,36 +31,59 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _loadingMembers = false;
   String? _memberError;
   List<OrganizationMembership> _members = [];
+  int? _updatingRoleUserId;
+
   bool _loadingReports = false;
   String? _reportsError;
   List<EmergencyReport> _reports = [];
+
+  bool _loadingAlertSummary = false;
+  String? _alertSummaryError;
+  AlertSummary? _alertSummary;
+
+  bool _loadingGlobalAlert = false;
+  bool _publishingGlobalAlert = false;
+  String? _globalAlertError;
+  GlobalAlert? _globalAlert;
+
   int _selectedIndex = 0;
   int _reportStep = 0;
   String _reportType = 'fire';
   bool _submittingReport = false;
   String? _reportError;
   String? _reportSuccess;
+
+  final TextEditingController _broadcastHeadlineController =
+      TextEditingController();
+  final TextEditingController _broadcastMessageController =
+      TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _detailsController = TextEditingController();
+
+  bool get _isAdmin => widget.user.organizationRole == 'administrator';
 
   @override
   void initState() {
     super.initState();
-    if (widget.user.organizationRole == 'administrator') {
+    _loadGlobalAlert();
+    if (_isAdmin) {
       _loadMembers();
       _loadReports();
+      _loadAlertSummary();
     }
   }
 
   @override
   void dispose() {
+    _broadcastHeadlineController.dispose();
+    _broadcastMessageController.dispose();
     _locationController.dispose();
     _detailsController.dispose();
     super.dispose();
   }
 
   Future<void> _loadMembers() async {
-    if (widget.user.organizationRole != 'administrator') {
+    if (!_isAdmin) {
       return;
     }
 
@@ -66,7 +93,8 @@ class _LoggedInPageState extends State<LoggedInPage> {
     });
 
     try {
-      final members = await ApiClient(token: widget.token).fetchOrganizationMembers();
+      final members =
+          await ApiClient(token: widget.token).fetchOrganizationMembers();
       if (mounted) {
         setState(() => _members = members);
       }
@@ -86,7 +114,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
   }
 
   Future<void> _loadReports() async {
-    if (widget.user.organizationRole != 'administrator') {
+    if (!_isAdmin) {
       return;
     }
 
@@ -96,7 +124,8 @@ class _LoggedInPageState extends State<LoggedInPage> {
     });
 
     try {
-      final reports = await ApiClient(token: widget.token).fetchEmergencyReports();
+      final reports =
+          await ApiClient(token: widget.token).fetchEmergencyReports();
       if (mounted) {
         setState(() => _reports = reports);
       }
@@ -115,7 +144,115 @@ class _LoggedInPageState extends State<LoggedInPage> {
     }
   }
 
-  Future<void> _changeRole(OrganizationMembership membership, String role) async {
+  Future<void> _loadAlertSummary() async {
+    if (!_isAdmin) {
+      return;
+    }
+
+    setState(() {
+      _loadingAlertSummary = true;
+      _alertSummaryError = null;
+    });
+
+    try {
+      final summary = await ApiClient(token: widget.token).fetchAlertSummary();
+      if (mounted) {
+        setState(() {
+          _alertSummary = summary;
+          _broadcastHeadlineController.text = summary.headline;
+          _broadcastMessageController.text = summary.draftMessage;
+        });
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _alertSummaryError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _alertSummaryError = 'Could not load alert summary.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingAlertSummary = false);
+      }
+    }
+  }
+
+  Future<void> _loadGlobalAlert() async {
+    setState(() {
+      _loadingGlobalAlert = true;
+      _globalAlertError = null;
+    });
+
+    try {
+      final alert = await ApiClient(token: widget.token).fetchGlobalAlert();
+      if (mounted) {
+        setState(() => _globalAlert = alert);
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _globalAlertError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _globalAlertError = 'Could not load global alert.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingGlobalAlert = false);
+      }
+    }
+  }
+
+  Future<void> _publishGlobalAlert() async {
+    final headline = _broadcastHeadlineController.text.trim();
+    final message = _broadcastMessageController.text.trim();
+    if (headline.isEmpty || message.isEmpty || _publishingGlobalAlert) {
+      setState(() => _globalAlertError = 'Headline and message are required.');
+      return;
+    }
+
+    setState(() {
+      _publishingGlobalAlert = true;
+      _globalAlertError = null;
+    });
+
+    try {
+      final alert = await ApiClient(token: widget.token).publishGlobalAlert(
+        headline: headline,
+        message: message,
+      );
+      if (mounted) {
+        setState(() => _globalAlert = alert);
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _globalAlertError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _globalAlertError = 'Could not publish global alert.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _publishingGlobalAlert = false);
+      }
+    }
+  }
+
+  Future<void> _changeRole(
+      OrganizationMembership membership, String role) async {
+    if (membership.isOwner ||
+        membership.role == role ||
+        _updatingRoleUserId != null) {
+      return;
+    }
+
+    setState(() {
+      _updatingRoleUserId = membership.userId;
+      _memberError = null;
+    });
+
     try {
       await ApiClient(token: widget.token).updateOrganizationMemberRole(
         userId: membership.userId,
@@ -125,6 +262,14 @@ class _LoggedInPageState extends State<LoggedInPage> {
     } on ApiException catch (error) {
       if (mounted) {
         setState(() => _memberError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _memberError = 'Could not update that role.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _updatingRoleUserId = null);
       }
     }
   }
@@ -151,9 +296,11 @@ class _LoggedInPageState extends State<LoggedInPage> {
           _detailsController.clear();
           _reportSuccess = 'Emergency report submitted.';
         });
-        if (widget.user.organizationRole == 'administrator') {
+        if (_isAdmin) {
           _loadReports();
+          _loadAlertSummary();
         }
+        _loadGlobalAlert();
       }
     } on ApiException catch (error) {
       if (mounted) {
@@ -170,10 +317,43 @@ class _LoggedInPageState extends State<LoggedInPage> {
     }
   }
 
+  void _previousReportStep() {
+    setState(() {
+      _reportStep -= 1;
+      _reportError = null;
+      _reportSuccess = null;
+    });
+  }
+
+  void _nextReportStep() {
+    if (_reportStep == 1 && _locationController.text.trim().isEmpty) {
+      setState(() => _reportError = 'Location is required.');
+      return;
+    }
+
+    setState(() {
+      _reportStep += 1;
+      _reportError = null;
+    });
+  }
+
+  void _selectDestination(int index) {
+    setState(() => _selectedIndex = index);
+
+    if (index == 1) {
+      _loadGlobalAlert();
+    }
+    if (index == 1 && _isAdmin) {
+      _loadAlertSummary();
+      _loadReports();
+    }
+    if (index == 2 && _isAdmin) {
+      _loadMembers();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isAdmin = widget.user.organizationRole == 'administrator';
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('CAC 2026'),
@@ -181,46 +361,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
           IconButton(
             tooltip: 'Organization info',
             icon: const Icon(Icons.info_outline),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Organization Information'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      InfoRow(
-                        label: 'User',
-                        value: widget.user.username,
-                      ),
-                      InfoRow(
-                        label: 'Organization',
-                        value: widget.organization.name,
-                      ),
-                      InfoRow(
-                        label: 'Join code',
-                        value: widget.organization.joinCode,
-                      ),
-                      InfoRow(
-                        label: 'Members',
-                        value: widget.organization.memberCount.toString(),
-                      ),
-                      InfoRow(
-                        label: 'Role',
-                        value: widget.user.organizationRole ?? 'None',
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Close'),
-                    ),
-                  ],
-                ),
-              );
-            },
+            onPressed: _showOrganizationInfo,
           ),
           IconButton(
             tooltip: 'Log out',
@@ -229,257 +370,61 @@ class _LoggedInPageState extends State<LoggedInPage> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
+      body: Column(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Report an incident',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        const SizedBox(height: 24),
-                        if (_reportSuccess != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Text(
-                              _reportSuccess!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        if (_reportError != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Text(
-                              _reportError!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            ),
-                          ),
-                        Text('Step ${_reportStep + 1} of 3'),
-                        const SizedBox(height: 12),
-                        if (_reportStep == 0) ...[
-                          const Text('What type of emergency is this?'),
-                          const SizedBox(height: 12),
-                          RadioListTile<String>(
-                            title: const Text('Fire'),
-                            value: 'fire',
-                            groupValue: _reportType,
-                            onChanged: (value) => setState(() => _reportType = value ?? 'fire'),
-                          ),
-                          RadioListTile<String>(
-                            title: const Text('Medical'),
-                            value: 'medical',
-                            groupValue: _reportType,
-                            onChanged: (value) => setState(() => _reportType = value ?? 'medical'),
-                          ),
-                          RadioListTile<String>(
-                            title: const Text('Intruder'),
-                            value: 'intruder',
-                            groupValue: _reportType,
-                            onChanged: (value) => setState(() => _reportType = value ?? 'intruder'),
-                          ),
-                        ] else if (_reportStep == 1) ...[
-                          const Text('Where are you right now?'),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _locationController,
-                            decoration: const InputDecoration(
-                              labelText: 'Location',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ] else ...[
-                          const Text('Any extra details?'),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _detailsController,
-                            maxLines: 4,
-                            decoration: const InputDecoration(
-                              labelText: 'Details (optional)',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            if (_reportStep > 0)
-                              OutlinedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _reportStep -= 1;
-                                    _reportError = null;
-                                    _reportSuccess = null;
-                                  });
-                                },
-                                child: const Text('Back'),
-                              ),
-                            const Spacer(),
-                            if (_reportStep < 2)
-                              ElevatedButton(
-                                onPressed: () {
-                                  if (_reportStep == 1 && _locationController.text.trim().isEmpty) {
-                                    setState(() => _reportError = 'Location is required.');
-                                    return;
-                                  }
-
-                                  setState(() {
-                                    _reportStep += 1;
-                                    _reportError = null;
-                                  });
-                                },
-                                child: const Text('Next'),
-                              )
-                            else
-                              ElevatedButton(
-                                onPressed: _submittingReport ? null : _submitReport,
-                                child: _submittingReport
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : const Text('Submit report'),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+          if (_globalAlert != null) GlobalAlertBanner(alert: _globalAlert!),
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                ReportTab(
+                  reportStep: _reportStep,
+                  reportType: _reportType,
+                  submittingReport: _submittingReport,
+                  reportError: _reportError,
+                  reportSuccess: _reportSuccess,
+                  locationController: _locationController,
+                  detailsController: _detailsController,
+                  onReportTypeChanged: (value) {
+                    setState(() => _reportType = value);
+                  },
+                  onBack: _previousReportStep,
+                  onNext: _nextReportStep,
+                  onSubmit: _submitReport,
                 ),
-              ),
+                AlertsTab(
+                  isAdmin: _isAdmin,
+                  loadingGlobalAlert: _loadingGlobalAlert,
+                  globalAlertError: _globalAlertError,
+                  globalAlert: _globalAlert,
+                  loadingAlertSummary: _loadingAlertSummary,
+                  alertSummaryError: _alertSummaryError,
+                  alertSummary: _alertSummary,
+                  broadcastHeadlineController: _broadcastHeadlineController,
+                  broadcastMessageController: _broadcastMessageController,
+                  publishingGlobalAlert: _publishingGlobalAlert,
+                  loadingReports: _loadingReports,
+                  reportsError: _reportsError,
+                  reports: _reports,
+                  onRefreshSummary: _loadAlertSummary,
+                  onPublishGlobalAlert: _publishGlobalAlert,
+                ),
+                if (_isAdmin)
+                  ManageTab(
+                    loadingMembers: _loadingMembers,
+                    memberError: _memberError,
+                    members: _members,
+                    updatingRoleUserId: _updatingRoleUserId,
+                    onChangeRole: _changeRole,
+                  ),
+              ],
             ),
           ),
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Alerts',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 16),
-                        const ListTile(
-                          leading: Icon(Icons.notifications),
-                          title: Text('Competition starts tomorrow'),
-                          subtitle: Text(
-                            'Be sure to arrive by 8:30 AM for check-in.',
-                          ),
-                        ),
-                        const Divider(),
-                        const ListTile(
-                          leading: Icon(Icons.info),
-                          title: Text('Lunch information'),
-                          subtitle: Text(
-                            'Lunch will be provided to all participants.',
-                          ),
-                        ),
-                        const Divider(),
-                        const ListTile(
-                          leading: Icon(Icons.warning_amber),
-                          title: Text('Bring your laptop charger'),
-                          subtitle: Text(
-                            'Power outlets may be limited.',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (isAdmin)
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Emergency reports',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Administrators can review reports submitted by organization members.',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 16),
-                          if (_loadingReports)
-                            const Center(child: CircularProgressIndicator())
-                          else if (_reportsError != null)
-                            Text(
-                              _reportsError!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            )
-                          else if (_reports.isEmpty)
-                            const Text('No emergency reports yet.')
-                          else
-                            ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: _reports.length,
-                              separatorBuilder: (_, __) => const Divider(),
-                              itemBuilder: (context, index) {
-                                final report = _reports[index];
-                                return ListTile(
-                                  leading: const Icon(Icons.warning_amber_rounded),
-                                  title: Text(report.emergencyTypeLabel),
-                                  subtitle: Text(
-                                    '${report.location}\n${report.details.isEmpty ? 'No additional details provided.' : report.details}',
-                                  ),
-                                  trailing: Text(report.reportedByUsername),
-                                );
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-          if (index == 2 && isAdmin) {
-            _loadReports();
-          }
-        },
+        onDestinationSelected: _selectDestination,
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.report_outlined),
@@ -491,12 +436,53 @@ class _LoggedInPageState extends State<LoggedInPage> {
             selectedIcon: Icon(Icons.crisis_alert),
             label: 'Alerts',
           ),
-          if (isAdmin)
+          if (_isAdmin)
             const NavigationDestination(
               icon: Icon(Icons.admin_panel_settings_outlined),
               selectedIcon: Icon(Icons.admin_panel_settings),
               label: 'Manage',
             ),
+        ],
+      ),
+    );
+  }
+
+  void _showOrganizationInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Organization Information'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InfoRow(
+              label: 'User',
+              value: widget.user.username,
+            ),
+            InfoRow(
+              label: 'Organization',
+              value: widget.organization.name,
+            ),
+            InfoRow(
+              label: 'Join code',
+              value: widget.organization.joinCode,
+            ),
+            InfoRow(
+              label: 'Members',
+              value: widget.organization.memberCount.toString(),
+            ),
+            InfoRow(
+              label: 'Role',
+              value: widget.user.organizationRole ?? 'None',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );

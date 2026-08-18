@@ -10,6 +10,47 @@
     <link rel="manifest" href="manifest.json">
   </head>
   <body>
-    <script src="flutter_bootstrap.js" async></script>
+    <script>
+      (function () {
+        var cacheClearedKey = 'cac2026-service-worker-cleared';
+
+        function loadFlutter() {
+          var script = document.createElement('script');
+          script.src = 'flutter_bootstrap.js';
+          script.async = true;
+          document.body.appendChild(script);
+        }
+
+        if (!('serviceWorker' in navigator) || sessionStorage.getItem(cacheClearedKey)) {
+          loadFlutter();
+          return;
+        }
+
+        sessionStorage.setItem(cacheClearedKey, '1');
+        navigator.serviceWorker.getRegistrations()
+          .then(function (registrations) {
+            return Promise.all(registrations.map(function (registration) {
+              return registration.unregister();
+            }));
+          })
+          .then(function () {
+            if (!window.caches) {
+              return Promise.resolve();
+            }
+            return caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (key) {
+                return caches.delete(key);
+              }));
+            });
+          })
+          .finally(function () {
+            if (navigator.serviceWorker.controller) {
+              window.location.reload();
+              return;
+            }
+            loadFlutter();
+          });
+      })();
+    </script>
   </body>
 </html>

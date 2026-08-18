@@ -1,9 +1,10 @@
 from django.urls import path
-from rest_framework.routers import DefaultRouter
 
 from .views import (
+    AlertSummaryView,
     CreateOrganizationView,
     EmergencyReportView,
+    GlobalAlertView,
     HealthView,
     JoinOrganizationView,
     LoginView,
@@ -11,12 +12,8 @@ from .views import (
     MeView,
     OrganizationMembersView,
     RegisterView,
-    TodoViewSet,
 )
 
-
-router = DefaultRouter()
-router.register("todos", TodoViewSet, basename="todo")
 
 urlpatterns = [
     path("health/", HealthView.as_view(), name="health"),
@@ -27,6 +24,7 @@ urlpatterns = [
     path("organizations/create/", CreateOrganizationView.as_view(), name="create-organization"),
     path("organizations/join/", JoinOrganizationView.as_view(), name="join-organization"),
     path("organizations/members/", OrganizationMembersView.as_view(), name="organization-members"),
+    path("alerts/summary/", AlertSummaryView.as_view(), name="alert-summary"),
+    path("alerts/global/", GlobalAlertView.as_view(), name="global-alert"),
     path("reports/", EmergencyReportView.as_view(), name="reports"),
 ]
-urlpatterns += router.urls

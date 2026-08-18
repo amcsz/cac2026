@@ -6,17 +6,10 @@ from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
-from .models import EmergencyReport, Organization, OrganizationMembership, Todo
+from .models import EmergencyReport, GlobalAlert, Organization, OrganizationMembership
 
 
 User = get_user_model()
-
-
-class TodoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Todo
-        fields = ["id", "title", "completed", "created_at"]
-        read_only_fields = ["id", "created_at"]
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -78,6 +71,32 @@ class EmergencyReportSerializer(serializers.ModelSerializer):
         validated_data["reported_by"] = user
         validated_data["organization"] = membership.organization
         return super().create(validated_data)
+
+
+class GlobalAlertSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
+
+    class Meta:
+        model = GlobalAlert
+        fields = ["id", "headline", "message", "created_at", "created_by_username"]
+        read_only_fields = ["id", "created_at", "created_by_username"]
+
+
+class PublishGlobalAlertSerializer(serializers.Serializer):
+    headline = serializers.CharField(max_length=120)
+    message = serializers.CharField()
+
+    def validate_headline(self, value):
+        headline = value.strip()
+        if not headline:
+            raise serializers.ValidationError("Headline is required.")
+        return headline
+
+    def validate_message(self, value):
+        message = value.strip()
+        if not message:
+            raise serializers.ValidationError("Message is required.")
+        return message
 
 
 class UserSerializer(serializers.ModelSerializer):
