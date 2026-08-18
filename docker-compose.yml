@@ -29,6 +29,8 @@ services:
       POSTGRES_PASSWORD: cac2026
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
+      WAIT_FOR_POSTGRES: "1"
+      SEED_INITIAL_DATA: "1"
       CORS_ALLOW_ALL_ORIGINS: "1"
       CORS_ALLOWED_ORIGINS: http://localhost:8081,http://127.0.0.1:8081
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
