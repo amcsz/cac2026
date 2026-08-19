@@ -1,10 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_user.dart';
 import '../models/organization.dart';
 import '../services/api_client.dart';
+import '../services/notification_service.dart';
+import '../utils/time_format.dart';
 import '../widgets/global_alert_banner.dart';
 import '../widgets/info_row.dart';
+import '../widgets/markdown_text.dart';
 import 'logged_in/alerts_tab.dart';
 import 'logged_in/archive_tab.dart';
 import 'logged_in/manage_tab.dart';
@@ -29,6 +35,9 @@ class LoggedInPage extends StatefulWidget {
 }
 
 class _LoggedInPageState extends State<LoggedInPage> {
+  static const Duration _globalAlertPollInterval = Duration(seconds: 10);
+  static const Duration _alertSummaryPollInterval = Duration(seconds: 10);
+
   bool _loadingMembers = false;
   String? _memberError;
   List<OrganizationMembership> _members = [];
@@ -56,14 +65,24 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _loadingAlertSummary = false;
   String? _alertSummaryError;
   AlertSummary? _alertSummary;
+  String? _lastAlertSummaryGeneratedAt;
+  String? _acknowledgedAlertSummaryGeneratedAt;
+  bool _urgentSummaryNoticeVisible = false;
 
   bool _loadingGlobalAlert = false;
   bool _publishingGlobalAlert = false;
   bool _clearingGlobalAlert = false;
   String? _globalAlertError;
   GlobalAlert? _globalAlert;
+  int? _lastGlobalAlertId;
+  bool _hasLoadedGlobalAlert = false;
+  bool _showingFullScreenGlobalAlert = false;
+  final Set<int> _dismissedFullScreenGlobalAlertIds = {};
+  Timer? _globalAlertPoller;
+  Timer? _alertSummaryPoller;
 
   int _selectedIndex = 0;
+  bool _showReportForm = false;
   int _reportStep = 0;
   String _reportType = 'fire';
   bool _submittingReport = false;
@@ -78,27 +97,62 @@ class _LoggedInPageState extends State<LoggedInPage> {
       TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _detailsController = TextEditingController();
+  final NotificationService _notificationService = createNotificationService();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool get _isAdmin => widget.user.organizationRole == 'administrator';
+
+  String get _acknowledgedSummaryKey =>
+      'acknowledged_alert_summary_${widget.organization.id}_${widget.user.id}';
 
   @override
   void initState() {
     super.initState();
-    _loadGlobalAlert();
+    _requestNotificationPermission();
+    _loadGlobalAlert(notifyIfChanged: false);
+    _startGlobalAlertPolling();
     if (_isAdmin) {
       _loadMembers();
       _loadReports();
       _loadArchiveDays();
+      _loadAlertSummary();
+      _startAlertSummaryPolling();
     }
   }
 
   @override
   void dispose() {
+    _globalAlertPoller?.cancel();
+    _alertSummaryPoller?.cancel();
     _broadcastHeadlineController.dispose();
     _broadcastMessageController.dispose();
     _locationController.dispose();
     _detailsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    await _notificationService.requestPermission();
+  }
+
+  void _startGlobalAlertPolling() {
+    _globalAlertPoller?.cancel();
+    _globalAlertPoller = Timer.periodic(
+      _globalAlertPollInterval,
+      (_) => _loadGlobalAlert(showLoading: false),
+    );
+  }
+
+  void _startAlertSummaryPolling() {
+    if (!_isAdmin) {
+      return;
+    }
+
+    _alertSummaryPoller?.cancel();
+    _alertSummaryPoller = Timer.periodic(
+      _alertSummaryPollInterval,
+      (_) => _loadAlertSummary(showLoading: false),
+    );
   }
 
   Future<void> _loadMembers() async {
@@ -174,8 +228,8 @@ class _LoggedInPageState extends State<LoggedInPage> {
     });
 
     try {
-      final archive =
-          await ApiClient(token: widget.token).fetchReportArchiveDays(page: page);
+      final archive = await ApiClient(token: widget.token)
+          .fetchReportArchiveDays(page: page);
       if (mounted) {
         setState(() {
           _archiveDays = archive.results;
@@ -229,7 +283,8 @@ class _LoggedInPageState extends State<LoggedInPage> {
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _archiveReportsError = 'Could not load archived reports.');
+        setState(
+            () => _archiveReportsError = 'Could not load archived reports.');
       }
     } finally {
       if (mounted) {
@@ -250,23 +305,43 @@ class _LoggedInPageState extends State<LoggedInPage> {
     });
   }
 
-  Future<void> _loadAlertSummary() async {
+  Future<void> _loadAlertSummary({
+    bool showLoading = true,
+    bool notifyIfChanged = true,
+  }) async {
     if (!_isAdmin) {
       return;
     }
 
-    setState(() {
-      _loadingAlertSummary = true;
-      _alertSummaryError = null;
-    });
+    if (showLoading) {
+      setState(() {
+        _loadingAlertSummary = true;
+        _alertSummaryError = null;
+      });
+    }
 
     try {
       final summary = await ApiClient(token: widget.token).fetchAlertSummary();
+      final acknowledgedGeneratedAt =
+          await _loadAcknowledgedAlertSummaryGeneratedAt();
       if (mounted) {
+        final generatedAt = summary.generatedAt;
+        final hasNewGeneratedAt = generatedAt.isNotEmpty &&
+            generatedAt != _lastAlertSummaryGeneratedAt;
+        final shouldShowNotice = notifyIfChanged &&
+            generatedAt.isNotEmpty &&
+            generatedAt != acknowledgedGeneratedAt;
+
         setState(() {
           _alertSummary = summary;
-          _broadcastHeadlineController.text = summary.headline;
-          _broadcastMessageController.text = summary.draftMessage;
+          _acknowledgedAlertSummaryGeneratedAt = acknowledgedGeneratedAt;
+          _lastAlertSummaryGeneratedAt =
+              generatedAt.isEmpty ? _lastAlertSummaryGeneratedAt : generatedAt;
+          _urgentSummaryNoticeVisible = shouldShowNotice;
+          if (showLoading || shouldShowNotice || hasNewGeneratedAt) {
+            _broadcastHeadlineController.text = summary.headline;
+            _broadcastMessageController.text = summary.draftMessage;
+          }
         });
       }
     } on ApiException catch (error) {
@@ -278,22 +353,66 @@ class _LoggedInPageState extends State<LoggedInPage> {
         setState(() => _alertSummaryError = 'Could not load alert summary.');
       }
     } finally {
-      if (mounted) {
+      if (mounted && showLoading) {
         setState(() => _loadingAlertSummary = false);
       }
     }
   }
 
-  Future<void> _loadGlobalAlert() async {
-    setState(() {
-      _loadingGlobalAlert = true;
-      _globalAlertError = null;
-    });
+  Future<String?> _loadAcknowledgedAlertSummaryGeneratedAt() async {
+    if (_acknowledgedAlertSummaryGeneratedAt != null) {
+      return _acknowledgedAlertSummaryGeneratedAt;
+    }
+
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getString(_acknowledgedSummaryKey);
+  }
+
+  Future<void> _acknowledgeUrgentSummaryNotice() async {
+    final generatedAt = _alertSummary?.generatedAt;
+    if (generatedAt != null && generatedAt.isNotEmpty) {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setString(_acknowledgedSummaryKey, generatedAt);
+      _acknowledgedAlertSummaryGeneratedAt = generatedAt;
+    }
+
+    if (mounted) {
+      setState(() => _urgentSummaryNoticeVisible = false);
+    }
+  }
+
+  Future<void> _loadGlobalAlert({
+    bool showLoading = true,
+    bool notifyIfChanged = true,
+  }) async {
+    if (showLoading) {
+      setState(() {
+        _loadingGlobalAlert = true;
+        _globalAlertError = null;
+      });
+    }
 
     try {
       final alert = await ApiClient(token: widget.token).fetchGlobalAlert();
       if (mounted) {
-        setState(() => _globalAlert = alert);
+        final shouldNotify = notifyIfChanged &&
+            _hasLoadedGlobalAlert &&
+            alert != null &&
+            alert.id != _lastGlobalAlertId;
+
+        setState(() {
+          _globalAlert = alert;
+          _lastGlobalAlertId = alert?.id;
+          _hasLoadedGlobalAlert = true;
+        });
+
+        if (alert != null) {
+          _showFullScreenGlobalAlertIfNeeded(alert);
+        }
+
+        if (shouldNotify) {
+          await _showGlobalAlertNotification(alert);
+        }
       }
     } on ApiException catch (error) {
       if (mounted) {
@@ -304,10 +423,17 @@ class _LoggedInPageState extends State<LoggedInPage> {
         setState(() => _globalAlertError = 'Could not load global alert.');
       }
     } finally {
-      if (mounted) {
+      if (mounted && showLoading) {
         setState(() => _loadingGlobalAlert = false);
       }
     }
+  }
+
+  Future<void> _showGlobalAlertNotification(GlobalAlert alert) async {
+    await _notificationService.show(
+      title: alert.headline,
+      body: alert.message,
+    );
   }
 
   Future<void> _publishGlobalAlert() async {
@@ -329,7 +455,13 @@ class _LoggedInPageState extends State<LoggedInPage> {
         message: message,
       );
       if (mounted) {
-        setState(() => _globalAlert = alert);
+        setState(() {
+          _globalAlert = alert;
+          _lastGlobalAlertId = alert.id;
+          _hasLoadedGlobalAlert = true;
+        });
+        _showFullScreenGlobalAlertIfNeeded(alert);
+        await _showGlobalAlertNotification(alert);
       }
     } on ApiException catch (error) {
       if (mounted) {
@@ -382,7 +514,12 @@ class _LoggedInPageState extends State<LoggedInPage> {
     try {
       await ApiClient(token: widget.token).clearGlobalAlert();
       if (mounted) {
-        setState(() => _globalAlert = null);
+        setState(() {
+          if (_globalAlert != null) {
+            _dismissedFullScreenGlobalAlertIds.add(_globalAlert!.id);
+          }
+          _globalAlert = null;
+        });
       }
     } on ApiException catch (error) {
       if (mounted) {
@@ -397,6 +534,37 @@ class _LoggedInPageState extends State<LoggedInPage> {
         setState(() => _clearingGlobalAlert = false);
       }
     }
+  }
+
+  void _showFullScreenGlobalAlertIfNeeded(GlobalAlert alert) {
+    if (_showingFullScreenGlobalAlert ||
+        _dismissedFullScreenGlobalAlertIds.contains(alert.id)) {
+      return;
+    }
+
+    _showingFullScreenGlobalAlert = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        _showingFullScreenGlobalAlert = false;
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) => _FullScreenGlobalAlertDialog(alert: alert),
+      );
+
+      if (mounted) {
+        setState(() {
+          _dismissedFullScreenGlobalAlertIds.add(alert.id);
+          _showingFullScreenGlobalAlert = false;
+        });
+      } else {
+        _showingFullScreenGlobalAlert = false;
+      }
+    });
   }
 
   Future<void> _simulateEmergencyScenario(String scenario) async {
@@ -483,6 +651,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
 
       if (mounted) {
         setState(() {
+          _showReportForm = false;
           _reportStep = 0;
           _reportType = 'fire';
           _locationController.clear();
@@ -491,8 +660,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
         });
         if (_isAdmin) {
           _loadReports();
+          _loadAlertSummary(showLoading: false);
         }
-        _loadGlobalAlert();
+        _loadGlobalAlert(showLoading: false);
       }
     } on ApiException catch (error) {
       if (mounted) {
@@ -507,6 +677,25 @@ class _LoggedInPageState extends State<LoggedInPage> {
         setState(() => _submittingReport = false);
       }
     }
+  }
+
+  void _startReport() {
+    setState(() {
+      _showReportForm = true;
+      _reportError = null;
+      _reportSuccess = null;
+    });
+  }
+
+  void _cancelReport() {
+    setState(() {
+      _showReportForm = false;
+      _reportStep = 0;
+      _reportType = 'fire';
+      _locationController.clear();
+      _detailsController.clear();
+      _reportError = null;
+    });
   }
 
   void _previousReportStep() {
@@ -533,7 +722,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
     setState(() => _selectedIndex = index);
 
     if (index == 1) {
-      _loadGlobalAlert();
+      _loadGlobalAlert(showLoading: false);
     }
     if (index == 1 && _isAdmin) {
       _loadReports();
@@ -546,9 +735,19 @@ class _LoggedInPageState extends State<LoggedInPage> {
     }
   }
 
+  void _openTodayReportsSidebar() {
+    if (!_isAdmin) {
+      return;
+    }
+
+    _loadReports();
+    _scaffoldKey.currentState?.openEndDrawer();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         title: const Text('FastGuard'),
         actions: [
@@ -566,12 +765,28 @@ class _LoggedInPageState extends State<LoggedInPage> {
       ),
       body: Column(
         children: [
+          if (_isAdmin && _urgentSummaryNoticeVisible)
+            _UrgentSummaryNotice(
+              onDismiss: () {
+                _acknowledgeUrgentSummaryNotice();
+              },
+              onViewAlerts: () {
+                setState(() {
+                  _selectedIndex = 1;
+                });
+                _acknowledgeUrgentSummaryNotice();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _openTodayReportsSidebar();
+                });
+              },
+            ),
           if (_globalAlert != null) GlobalAlertBanner(alert: _globalAlert!),
           Expanded(
             child: IndexedStack(
               index: _selectedIndex,
               children: [
                 ReportTab(
+                  showReportForm: _showReportForm,
                   reportStep: _reportStep,
                   reportType: _reportType,
                   submittingReport: _submittingReport,
@@ -579,9 +794,11 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   reportSuccess: _reportSuccess,
                   locationController: _locationController,
                   detailsController: _detailsController,
+                  onStartReport: _startReport,
                   onReportTypeChanged: (value) {
                     setState(() => _reportType = value);
                   },
+                  onCancel: _cancelReport,
                   onBack: _previousReportStep,
                   onNext: _nextReportStep,
                   onSubmit: _submitReport,
@@ -598,10 +815,8 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   broadcastMessageController: _broadcastMessageController,
                   publishingGlobalAlert: _publishingGlobalAlert,
                   clearingGlobalAlert: _clearingGlobalAlert,
-                  loadingReports: _loadingReports,
-                  reportsError: _reportsError,
-                  reports: _reports,
-                  onRefreshSummary: _loadAlertSummary,
+                  todayReportCount: _reports.length,
+                  onOpenReportsSidebar: _openTodayReportsSidebar,
                   onPublishGlobalAlert: _publishGlobalAlert,
                   onClearGlobalAlert: _clearGlobalAlert,
                 ),
@@ -622,7 +837,8 @@ class _LoggedInPageState extends State<LoggedInPage> {
                     eventsTotalPages: _archiveEventsTotalPages,
                     eventsHasNext: _archiveEventsHasNext,
                     eventsHasPrevious: _archiveEventsHasPrevious,
-                    onRefreshDays: () => _loadArchiveDays(page: _archiveDaysPage),
+                    onRefreshDays: () =>
+                        _loadArchiveDays(page: _archiveDaysPage),
                     onSelectDate: (date) => _loadArchiveReports(date),
                     onBackToDays: _showArchiveDays,
                     onDaysPageChanged: (page) => _loadArchiveDays(page: page),
@@ -649,6 +865,14 @@ class _LoggedInPageState extends State<LoggedInPage> {
           ),
         ],
       ),
+      endDrawer: _isAdmin
+          ? TodayReportsSidebar(
+              loadingReports: _loadingReports,
+              reportsError: _reportsError,
+              reports: _reports,
+              onRefresh: _loadReports,
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _selectDestination,
@@ -717,6 +941,176 @@ class _LoggedInPageState extends State<LoggedInPage> {
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _UrgentSummaryNotice extends StatelessWidget {
+  const _UrgentSummaryNotice({
+    required this.onDismiss,
+    required this.onViewAlerts,
+  });
+
+  final VoidCallback onDismiss;
+  final VoidCallback onViewAlerts;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: colorScheme.errorContainer,
+      elevation: 8,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.priority_high,
+                color: colorScheme.onErrorContainer,
+                size: 34,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Urgent Summary Updated',
+                      style: textTheme.titleLarge?.copyWith(
+                        color: colorScheme.onErrorContainer,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'New emergency information needs administrator attention.',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onErrorContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    FilledButton.icon(
+                      onPressed: onViewAlerts,
+                      icon: const Icon(Icons.crisis_alert),
+                      label: const Text('View alerts'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colorScheme.onErrorContainer,
+                        foregroundColor: colorScheme.errorContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Dismiss',
+                onPressed: onDismiss,
+                icon: Icon(
+                  Icons.close,
+                  color: colorScheme.onErrorContainer,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FullScreenGlobalAlertDialog extends StatelessWidget {
+  const _FullScreenGlobalAlertDialog({required this.alert});
+
+  final GlobalAlert alert;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Dialog.fullscreen(
+      backgroundColor: colorScheme.errorContainer,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                tooltip: 'Dismiss global alert',
+                onPressed: () => Navigator.pop(context),
+                icon: Icon(
+                  Icons.close,
+                  color: colorScheme.onErrorContainer,
+                ),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 760),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.campaign,
+                          color: colorScheme.onErrorContainer,
+                          size: 54,
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          alert.headline.toUpperCase(),
+                          style: Theme.of(context)
+                              .textTheme
+                              .displayMedium
+                              ?.copyWith(
+                                color: colorScheme.onErrorContainer,
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                        const SizedBox(height: 18),
+                        MarkdownText(
+                          alert.message,
+                          style: TextStyle(
+                            color: colorScheme.onErrorContainer,
+                            fontSize: 20,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Announced ${formatTimestamp(alert.createdAt)}',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onErrorContainer
+                                        .withValues(alpha: 0.82),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                        const SizedBox(height: 28),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.check),
+                            label: const Text('I understand'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

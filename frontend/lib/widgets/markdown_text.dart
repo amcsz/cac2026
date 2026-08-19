@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
 
 class MarkdownText extends StatelessWidget {
-  const MarkdownText(this.text, {this.style, super.key});
+  const MarkdownText(
+    this.text, {
+    this.style,
+    this.maxLines,
+    this.overflow,
+    super.key,
+  });
 
   final String text;
   final TextStyle? style;
+  final int? maxLines;
+  final TextOverflow? overflow;
 
   @override
   Widget build(BuildContext context) {
-    return SelectableText.rich(
+    return Text.rich(
       TextSpan(
         style: style ?? Theme.of(context).textTheme.bodyMedium,
         children: _spans(),
       ),
+      maxLines: maxLines,
+      overflow: overflow ?? TextOverflow.clip,
     );
   }
 

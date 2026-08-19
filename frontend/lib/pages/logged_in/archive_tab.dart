@@ -65,6 +65,7 @@ class ArchiveTab extends StatelessWidget {
               ).animate(
                 CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
               );
+
               return SlideTransition(
                 position: offsetAnimation,
                 child: FadeTransition(opacity: animation, child: child),
@@ -132,75 +133,71 @@ class _ArchiveDaysView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Archive',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Refresh archive',
-                  onPressed: loadingDays ? null : onRefreshDays,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Past report days. Today stays on the Alerts tab.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            if (loadingDays)
-              const Center(child: CircularProgressIndicator())
-            else if (daysError != null)
-              Text(
-                daysError!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              )
-            else if (days.isEmpty)
-              const Text('No archived report days yet.')
-            else ...[
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: days.length,
-                separatorBuilder: (_, __) => const Divider(),
-                itemBuilder: (context, index) {
-                  final day = days[index];
-                  return ListTile(
-                    leading: const Icon(Icons.calendar_month),
-                    title: Text(formatDate(day.date)),
-                    subtitle: Text(
-                      '${day.reportCount} report${day.reportCount == 1 ? '' : 's'}; ${day.alertCount} global alert${day.alertCount == 1 ? '' : 's'}',
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => onSelectDate(day.date),
-                  );
-                },
+            Expanded(
+              child: Text(
+                'Archive',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-              const SizedBox(height: 12),
-              _Pager(
-                page: daysPage,
-                totalPages: daysTotalPages,
-                hasNext: daysHasNext,
-                hasPrevious: daysHasPrevious,
-                onPageChanged: onDaysPageChanged,
-              ),
-            ],
+            ),
+            IconButton(
+              tooltip: 'Refresh archive',
+              onPressed: loadingDays ? null : onRefreshDays,
+              icon: const Icon(Icons.refresh),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(
+          'Past report days. Today stays on the Alerts tab.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 16),
+        if (loadingDays)
+          const Center(child: CircularProgressIndicator())
+        else if (daysError != null)
+          Text(
+            daysError!,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.error,
+            ),
+          )
+        else if (days.isEmpty)
+          const Text('No archived report days yet.')
+        else ...[
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: days.length,
+            separatorBuilder: (_, __) => const Divider(),
+            itemBuilder: (context, index) {
+              final day = days[index];
+
+              return ListTile(
+                leading: const Icon(Icons.calendar_month),
+                title: Text(formatDate(day.date)),
+                subtitle: Text(
+                  '${day.reportCount} report${day.reportCount == 1 ? '' : 's'}; ${day.alertCount} global alert${day.alertCount == 1 ? '' : 's'}',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => onSelectDate(day.date),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _Pager(
+            page: daysPage,
+            totalPages: daysTotalPages,
+            hasNext: daysHasNext,
+            hasPrevious: daysHasPrevious,
+            onPageChanged: onDaysPageChanged,
+          ),
+        ],
+      ],
     );
   }
 }
@@ -233,54 +230,49 @@ class _ArchiveReportsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                IconButton(
-                  tooltip: 'Back to archive days',
-                  onPressed: onBackToDays,
-                  icon: const Icon(Icons.arrow_back),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    formatDate(selectedDate),
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                ),
-              ],
+            IconButton(
+              tooltip: 'Back to archive days',
+              onPressed: onBackToDays,
+              icon: const Icon(Icons.arrow_back),
             ),
-            const SizedBox(height: 16),
-            if (loadingReports)
-              const Center(child: CircularProgressIndicator())
-            else if (reportsError != null)
-              Text(
-                reportsError!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              )
-            else if (events.isEmpty)
-              const Text('No archive events found for this day.')
-            else ...[
-              _EventList(events: events),
-              const SizedBox(height: 12),
-              _Pager(
-                page: eventsPage,
-                totalPages: eventsTotalPages,
-                hasNext: eventsHasNext,
-                hasPrevious: eventsHasPrevious,
-                onPageChanged: onEventsPageChanged,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                formatDate(selectedDate),
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-            ],
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 16),
+        if (loadingReports)
+          const Center(child: CircularProgressIndicator())
+        else if (reportsError != null)
+          Text(
+            reportsError!,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.error,
+            ),
+          )
+        else if (events.isEmpty)
+          const Text('No archive events found for this day.')
+        else ...[
+          _EventList(events: events),
+          const SizedBox(height: 12),
+          _Pager(
+            page: eventsPage,
+            totalPages: eventsTotalPages,
+            hasNext: eventsHasNext,
+            hasPrevious: eventsHasPrevious,
+            onPageChanged: onEventsPageChanged,
+          ),
+        ],
+      ],
     );
   }
 }
@@ -300,6 +292,7 @@ class _EventList extends StatelessWidget {
       itemBuilder: (context, index) {
         final event = events[index];
         final report = event.report;
+
         if (report != null) {
           return ListTile(
             leading: const Icon(Icons.warning_amber_rounded),
@@ -311,6 +304,7 @@ class _EventList extends StatelessWidget {
         }
 
         final alert = event.globalAlert;
+
         return ListTile(
           leading: const Icon(Icons.campaign),
           title: Text(alert?.headline ?? 'Global alert'),

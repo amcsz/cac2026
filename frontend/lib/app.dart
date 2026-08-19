@@ -12,8 +12,8 @@ class FastGuardApp extends StatelessWidget {
       title: 'FastGuard',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xff2f6f73),
-          secondary: const Color(0xffb85c38),
+          seedColor: const Color(0xff0f3a5f),
+          secondary: const Color(0xff2d5f8f),
         ),
         inputDecorationTheme: const InputDecorationTheme(
           border: OutlineInputBorder(),

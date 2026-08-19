@@ -151,3 +151,30 @@ class GlobalAlert(models.Model):
 
     def __str__(self):
         return self.headline
+
+
+class DailyAlertSummary(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="daily_alert_summaries",
+    )
+    date = models.DateField()
+    headline = models.CharField(max_length=120)
+    summary = models.TextField()
+    draft_message = models.TextField()
+    report_count = models.PositiveIntegerField(default=0)
+    generated_at = models.DateTimeField(default=timezone.now)
+    ai_unavailable = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "date"],
+                name="unique_daily_alert_summary_per_organization",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.organization} summary for {self.date}"

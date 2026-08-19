@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/auth_session.dart';
 import '../services/api_client.dart';
 import '../config/app_config.dart';
+import '../services/notification_service.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({required this.onAuthenticated, super.key});
@@ -21,6 +22,7 @@ class _AuthPageState extends State<AuthPage> {
   bool _registering = false;
   bool _submitting = false;
   String? _error;
+  final NotificationService _notificationService = createNotificationService();
 
   @override
   void dispose() {
@@ -41,6 +43,7 @@ class _AuthPageState extends State<AuthPage> {
     });
 
     try {
+      await _notificationService.requestPermission();
       const api = ApiClient();
       final session = _registering
           ? await api.register(
@@ -56,7 +59,8 @@ class _AuthPageState extends State<AuthPage> {
     } on ApiException catch (error) {
       setState(() => _error = error.message);
     } catch (error) {
-      setState(() => _error = 'Could not reach backend at ${AppConfig.apiBaseUrl}.');
+      setState(
+          () => _error = 'Could not reach backend at ${AppConfig.apiBaseUrl}.');
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
@@ -66,26 +70,47 @@ class _AuthPageState extends State<AuthPage> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
+            constraints: const BoxConstraints(maxWidth: 460),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Icon(
+                    Icons.shield_outlined,
+                    size: 56,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(height: 16),
                   Text(
-                    _registering ? 'Create your account' : 'Log in to continue',
-                    style: Theme.of(context).textTheme.headlineMedium,
+                    'FastGuard',
+                    textAlign: TextAlign.center,
+                    style: textTheme.displaySmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'You need an account before you can join or create an organization.',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    'AI emergency reporting designed to keep you safe.',
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    _registering ? 'Create your account' : 'Log in to continue',
+                    style: textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 24),
                   TextFormField(
@@ -128,7 +153,8 @@ class _AuthPageState extends State<AuthPage> {
                     const SizedBox(height: 12),
                     Text(
                       _error!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      style:
+                          TextStyle(color: Theme.of(context).colorScheme.error),
                     ),
                   ],
                   const SizedBox(height: 20),

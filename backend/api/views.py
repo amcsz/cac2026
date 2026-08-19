@@ -1,3 +1,6 @@
+import logging
+import threading
+
 from rest_framework import status
 from django.core.paginator import EmptyPage, Paginator
 from django.utils import timezone
@@ -5,7 +8,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .ai_summary import AiSummaryUnavailable, generate_recent_report_summary
+from .ai_summary import (
+    AiSummaryUnavailable,
+    get_cached_daily_report_summary,
+    refresh_daily_report_summary,
+)
 from .models import (
     ArchiveDay,
     EmergencyReport,
@@ -33,6 +40,7 @@ from .serializers import (
 
 DEFAULT_PAGE_SIZE = 10
 MAX_PAGE_SIZE = 50
+logger = logging.getLogger(__name__)
 
 
 def _admin_membership_or_response(user, message):
@@ -92,6 +100,22 @@ def _paginated_response(queryset_or_list, request, serializer=None):
             "has_previous": page.has_previous(),
         }
     )
+
+
+def _refresh_summary_after_report(organization):
+    organization_id = organization.id
+
+    def refresh():
+        try:
+            from .models import Organization
+
+            refresh_daily_report_summary(Organization.objects.get(id=organization_id))
+        except AiSummaryUnavailable as exc:
+            logger.warning("Could not refresh daily alert summary: %s", exc)
+        except Exception:
+            logger.exception("Unexpected error refreshing daily alert summary.")
+
+    threading.Thread(target=refresh, daemon=True).start()
 
 
 class HealthView(APIView):
@@ -235,6 +259,7 @@ class EmergencyReportView(APIView):
         serializer = EmergencyReportSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         report = serializer.save()
+        _refresh_summary_after_report(report.organization)
         return Response(EmergencyReportSerializer(report).data, status=status.HTTP_201_CREATED)
 
 
@@ -357,6 +382,8 @@ class SimulateEmergencyScenarioView(APIView):
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+        _refresh_summary_after_report(membership.organization)
+
         return Response(
             {
                 "scenario": serializer.validated_data["scenario"],
@@ -378,12 +405,7 @@ class AlertSummaryView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        try:
-            summary = generate_recent_report_summary(membership.organization)
-        except AiSummaryUnavailable as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-        return Response(summary)
+        return Response(get_cached_daily_report_summary(membership.organization))
 
 
 class GlobalAlertView(APIView):
