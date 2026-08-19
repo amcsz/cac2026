@@ -92,7 +92,7 @@ GEMINI_API_BASE_URL = os.environ.get(
     "https://generativelanguage.googleapis.com/v1beta",
 )
 GEMINI_CONNECT_TIMEOUT_SECONDS = min(int(os.environ.get("GEMINI_CONNECT_TIMEOUT_SECONDS", "2")), 3)
-GEMINI_TIMEOUT_SECONDS = min(int(os.environ.get("GEMINI_TIMEOUT_SECONDS", "4")), 4)
+GEMINI_TIMEOUT_SECONDS = 1000
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
