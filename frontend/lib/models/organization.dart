@@ -161,3 +161,90 @@ class GlobalAlert {
     );
   }
 }
+
+class ReportArchiveDay {
+  const ReportArchiveDay({
+    required this.date,
+    required this.count,
+    required this.reportCount,
+    required this.alertCount,
+  });
+
+  final String date;
+  final int count;
+  final int reportCount;
+  final int alertCount;
+
+  factory ReportArchiveDay.fromJson(Map<String, dynamic> json) {
+    return ReportArchiveDay(
+      date: json['date'] as String? ?? '',
+      count: json['count'] as int? ?? 0,
+      reportCount: json['report_count'] as int? ?? 0,
+      alertCount: json['alert_count'] as int? ?? 0,
+    );
+  }
+}
+
+class ArchiveEvent {
+  const ArchiveEvent({
+    required this.type,
+    required this.createdAt,
+    required this.report,
+    required this.globalAlert,
+  });
+
+  final String type;
+  final String createdAt;
+  final EmergencyReport? report;
+  final GlobalAlert? globalAlert;
+
+  factory ArchiveEvent.fromJson(Map<String, dynamic> json) {
+    final type = json['type'] as String? ?? '';
+    final payload = json['payload'] as Map<String, dynamic>? ?? {};
+    return ArchiveEvent(
+      type: type,
+      createdAt: json['created_at'] as String? ?? '',
+      report: type == 'report' ? EmergencyReport.fromJson(payload) : null,
+      globalAlert:
+          type == 'global_alert' ? GlobalAlert.fromJson(payload) : null,
+    );
+  }
+}
+
+class PaginatedResult<T> {
+  const PaginatedResult({
+    required this.results,
+    required this.page,
+    required this.pageSize,
+    required this.totalPages,
+    required this.totalCount,
+    required this.hasNext,
+    required this.hasPrevious,
+  });
+
+  final List<T> results;
+  final int page;
+  final int pageSize;
+  final int totalPages;
+  final int totalCount;
+  final bool hasNext;
+  final bool hasPrevious;
+
+  factory PaginatedResult.fromJson(
+    Map<String, dynamic> json,
+    T Function(Map<String, dynamic>) fromJson,
+  ) {
+    final decodedResults = json['results'] as List<dynamic>? ?? [];
+    return PaginatedResult(
+      results: decodedResults
+          .map((item) => fromJson(item as Map<String, dynamic>))
+          .toList(),
+      page: json['page'] as int? ?? 1,
+      pageSize: json['page_size'] as int? ?? 10,
+      totalPages: json['total_pages'] as int? ?? 1,
+      totalCount: json['total_count'] as int? ?? 0,
+      hasNext: json['has_next'] as bool? ?? false,
+      hasPrevious: json['has_previous'] as bool? ?? false,
+    );
+  }
+}

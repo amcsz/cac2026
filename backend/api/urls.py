@@ -12,6 +12,9 @@ from .views import (
     MeView,
     OrganizationMembersView,
     RegisterView,
+    ReportArchiveDaysView,
+    ReportArchiveReportsView,
+    SimulateEmergencyScenarioView,
 )
 
 
@@ -27,4 +30,7 @@ urlpatterns = [
     path("alerts/summary/", AlertSummaryView.as_view(), name="alert-summary"),
     path("alerts/global/", GlobalAlertView.as_view(), name="global-alert"),
     path("reports/", EmergencyReportView.as_view(), name="reports"),
+    path("reports/archive/days/", ReportArchiveDaysView.as_view(), name="report-archive-days"),
+    path("reports/archive/", ReportArchiveReportsView.as_view(), name="report-archive-reports"),
+    path("reports/simulate/", SimulateEmergencyScenarioView.as_view(), name="simulate-emergency"),
 ]

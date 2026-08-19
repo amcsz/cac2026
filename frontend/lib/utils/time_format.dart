@@ -31,3 +31,16 @@ String formatTimestamp(String value) {
 
   return '$month ${local.day}, $hour:$minute $suffix';
 }
+
+String formatDate(String value) {
+  if (value.isEmpty) {
+    return 'Unknown date';
+  }
+
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) {
+    return value;
+  }
+
+  return '${_monthNames[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
+}

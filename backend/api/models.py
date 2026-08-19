@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Organization(models.Model):
@@ -50,6 +51,34 @@ class OrganizationMembership(models.Model):
         return f"{self.user} in {self.organization}"
 
 
+class ArchiveDay(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="archive_days",
+    )
+    date = models.DateField()
+
+    class Meta:
+        ordering = ["-date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "date"],
+                name="unique_archive_day_per_organization",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.organization} archive for {self.date}"
+
+
+def get_archive_day_for_datetime(organization, value):
+    return ArchiveDay.objects.get_or_create(
+        organization=organization,
+        date=timezone.localtime(value).date(),
+    )[0]
+
+
 class EmergencyReport(models.Model):
     TYPE_FIRE = "fire"
     TYPE_MEDICAL = "medical"
@@ -77,6 +106,13 @@ class EmergencyReport(models.Model):
     location = models.CharField(max_length=255)
     details = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    archive_day = models.ForeignKey(
+        ArchiveDay,
+        on_delete=models.CASCADE,
+        related_name="reports",
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -101,6 +137,14 @@ class GlobalAlert(models.Model):
     headline = models.CharField(max_length=120)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    archive_day = models.ForeignKey(
+        ArchiveDay,
+        on_delete=models.CASCADE,
+        related_name="global_alerts",
+        null=True,
+        blank=True,
+    )
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["-created_at"]

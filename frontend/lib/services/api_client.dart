@@ -169,6 +169,63 @@ class ApiClient {
     throw ApiException(_extractError(response));
   }
 
+  Future<PaginatedResult<ReportArchiveDay>> fetchReportArchiveDays({
+    int page = 1,
+  }) async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/reports/archive/days/?page=$page'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedResult.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+        ReportArchiveDay.fromJson,
+      );
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<PaginatedResult<ArchiveEvent>> fetchArchivedReports({
+    required String date,
+    int page = 1,
+  }) async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/reports/archive/?date=$date&page=$page'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedResult.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+        ArchiveEvent.fromJson,
+      );
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<List<EmergencyReport>> simulateEmergencyScenario({
+    required String scenario,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/reports/simulate/'),
+      headers: _headers,
+      body: jsonEncode({'scenario': scenario}),
+    );
+
+    if (response.statusCode == 201) {
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final reports = decoded['reports'] as List<dynamic>? ?? [];
+      return reports
+          .map((item) => EmergencyReport.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
   Future<AlertSummary> fetchAlertSummary() async {
     final response = await http.get(
       Uri.parse('${AppConfig.apiBaseUrl}/alerts/summary/'),
@@ -216,6 +273,19 @@ class ApiClient {
       return GlobalAlert.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>,
       );
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<void> clearGlobalAlert() async {
+    final response = await http.delete(
+      Uri.parse('${AppConfig.apiBaseUrl}/alerts/global/'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 204) {
+      return;
     }
 
     throw ApiException(_extractError(response));

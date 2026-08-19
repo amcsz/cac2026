@@ -6,6 +6,7 @@ import '../services/api_client.dart';
 import '../widgets/global_alert_banner.dart';
 import '../widgets/info_row.dart';
 import 'logged_in/alerts_tab.dart';
+import 'logged_in/archive_tab.dart';
 import 'logged_in/manage_tab.dart';
 import 'logged_in/report_tab.dart';
 
@@ -36,6 +37,21 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _loadingReports = false;
   String? _reportsError;
   List<EmergencyReport> _reports = [];
+  bool _loadingArchiveDays = false;
+  String? _archiveDaysError;
+  List<ReportArchiveDay> _archiveDays = [];
+  int _archiveDaysPage = 1;
+  int _archiveDaysTotalPages = 1;
+  bool _archiveDaysHasNext = false;
+  bool _archiveDaysHasPrevious = false;
+  String? _selectedArchiveDate;
+  bool _loadingArchiveReports = false;
+  String? _archiveReportsError;
+  List<ArchiveEvent> _archiveEvents = [];
+  int _archiveEventsPage = 1;
+  int _archiveEventsTotalPages = 1;
+  bool _archiveEventsHasNext = false;
+  bool _archiveEventsHasPrevious = false;
 
   bool _loadingAlertSummary = false;
   String? _alertSummaryError;
@@ -43,6 +59,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
 
   bool _loadingGlobalAlert = false;
   bool _publishingGlobalAlert = false;
+  bool _clearingGlobalAlert = false;
   String? _globalAlertError;
   GlobalAlert? _globalAlert;
 
@@ -52,6 +69,8 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _submittingReport = false;
   String? _reportError;
   String? _reportSuccess;
+  String? _simulatingScenario;
+  String? _simulationError;
 
   final TextEditingController _broadcastHeadlineController =
       TextEditingController();
@@ -69,7 +88,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
     if (_isAdmin) {
       _loadMembers();
       _loadReports();
-      _loadAlertSummary();
+      _loadArchiveDays();
     }
   }
 
@@ -142,6 +161,93 @@ class _LoggedInPageState extends State<LoggedInPage> {
         setState(() => _loadingReports = false);
       }
     }
+  }
+
+  Future<void> _loadArchiveDays({int page = 1}) async {
+    if (!_isAdmin) {
+      return;
+    }
+
+    setState(() {
+      _loadingArchiveDays = true;
+      _archiveDaysError = null;
+    });
+
+    try {
+      final archive =
+          await ApiClient(token: widget.token).fetchReportArchiveDays(page: page);
+      if (mounted) {
+        setState(() {
+          _archiveDays = archive.results;
+          _archiveDaysPage = archive.page;
+          _archiveDaysTotalPages = archive.totalPages;
+          _archiveDaysHasNext = archive.hasNext;
+          _archiveDaysHasPrevious = archive.hasPrevious;
+        });
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _archiveDaysError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _archiveDaysError = 'Could not load archived days.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingArchiveDays = false);
+      }
+    }
+  }
+
+  Future<void> _loadArchiveReports(String date, {int page = 1}) async {
+    if (!_isAdmin) {
+      return;
+    }
+
+    setState(() {
+      _selectedArchiveDate = date;
+      _loadingArchiveReports = true;
+      _archiveReportsError = null;
+    });
+
+    try {
+      final reports = await ApiClient(token: widget.token)
+          .fetchArchivedReports(date: date, page: page);
+      if (mounted) {
+        setState(() {
+          _archiveEvents = reports.results;
+          _archiveEventsPage = reports.page;
+          _archiveEventsTotalPages = reports.totalPages;
+          _archiveEventsHasNext = reports.hasNext;
+          _archiveEventsHasPrevious = reports.hasPrevious;
+        });
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _archiveReportsError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _archiveReportsError = 'Could not load archived reports.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingArchiveReports = false);
+      }
+    }
+  }
+
+  void _showArchiveDays() {
+    setState(() {
+      _selectedArchiveDate = null;
+      _archiveEvents = [];
+      _archiveReportsError = null;
+      _archiveEventsPage = 1;
+      _archiveEventsTotalPages = 1;
+      _archiveEventsHasNext = false;
+      _archiveEventsHasPrevious = false;
+    });
   }
 
   Future<void> _loadAlertSummary() async {
@@ -240,6 +346,93 @@ class _LoggedInPageState extends State<LoggedInPage> {
     }
   }
 
+  Future<void> _clearGlobalAlert() async {
+    if (!_isAdmin || _globalAlert == null || _clearingGlobalAlert) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear global message?'),
+        content: const Text(
+          'This will remove the message banner for everyone in your organization.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+
+    setState(() {
+      _clearingGlobalAlert = true;
+      _globalAlertError = null;
+    });
+
+    try {
+      await ApiClient(token: widget.token).clearGlobalAlert();
+      if (mounted) {
+        setState(() => _globalAlert = null);
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _globalAlertError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _globalAlertError = 'Could not clear global alert.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _clearingGlobalAlert = false);
+      }
+    }
+  }
+
+  Future<void> _simulateEmergencyScenario(String scenario) async {
+    if (!_isAdmin || _simulatingScenario != null) {
+      return;
+    }
+
+    setState(() {
+      _simulatingScenario = scenario;
+      _simulationError = null;
+    });
+
+    try {
+      await ApiClient(token: widget.token).simulateEmergencyScenario(
+        scenario: scenario,
+      );
+      await _loadReports();
+      await _loadArchiveDays(page: _archiveDaysPage);
+      if (mounted) {
+        setState(() => _selectedIndex = 1);
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _simulationError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _simulationError = 'Could not simulate emergency.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _simulatingScenario = null);
+      }
+    }
+  }
+
   Future<void> _changeRole(
       OrganizationMembership membership, String role) async {
     if (membership.isOwner ||
@@ -298,7 +491,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
         });
         if (_isAdmin) {
           _loadReports();
-          _loadAlertSummary();
         }
         _loadGlobalAlert();
       }
@@ -344,10 +536,12 @@ class _LoggedInPageState extends State<LoggedInPage> {
       _loadGlobalAlert();
     }
     if (index == 1 && _isAdmin) {
-      _loadAlertSummary();
       _loadReports();
     }
     if (index == 2 && _isAdmin) {
+      _loadArchiveDays(page: _archiveDaysPage);
+    }
+    if (index == 3 && _isAdmin) {
       _loadMembers();
     }
   }
@@ -356,7 +550,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('CAC 2026'),
+        title: const Text('FastGuard'),
         actions: [
           IconButton(
             tooltip: 'Organization info',
@@ -403,19 +597,52 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   broadcastHeadlineController: _broadcastHeadlineController,
                   broadcastMessageController: _broadcastMessageController,
                   publishingGlobalAlert: _publishingGlobalAlert,
+                  clearingGlobalAlert: _clearingGlobalAlert,
                   loadingReports: _loadingReports,
                   reportsError: _reportsError,
                   reports: _reports,
                   onRefreshSummary: _loadAlertSummary,
                   onPublishGlobalAlert: _publishGlobalAlert,
+                  onClearGlobalAlert: _clearGlobalAlert,
                 ),
+                if (_isAdmin)
+                  ArchiveTab(
+                    loadingDays: _loadingArchiveDays,
+                    daysError: _archiveDaysError,
+                    days: _archiveDays,
+                    daysPage: _archiveDaysPage,
+                    daysTotalPages: _archiveDaysTotalPages,
+                    daysHasNext: _archiveDaysHasNext,
+                    daysHasPrevious: _archiveDaysHasPrevious,
+                    selectedDate: _selectedArchiveDate,
+                    loadingReports: _loadingArchiveReports,
+                    reportsError: _archiveReportsError,
+                    events: _archiveEvents,
+                    eventsPage: _archiveEventsPage,
+                    eventsTotalPages: _archiveEventsTotalPages,
+                    eventsHasNext: _archiveEventsHasNext,
+                    eventsHasPrevious: _archiveEventsHasPrevious,
+                    onRefreshDays: () => _loadArchiveDays(page: _archiveDaysPage),
+                    onSelectDate: (date) => _loadArchiveReports(date),
+                    onBackToDays: _showArchiveDays,
+                    onDaysPageChanged: (page) => _loadArchiveDays(page: page),
+                    onEventsPageChanged: (page) {
+                      final date = _selectedArchiveDate;
+                      if (date != null) {
+                        _loadArchiveReports(date, page: page);
+                      }
+                    },
+                  ),
                 if (_isAdmin)
                   ManageTab(
                     loadingMembers: _loadingMembers,
                     memberError: _memberError,
                     members: _members,
                     updatingRoleUserId: _updatingRoleUserId,
+                    simulatingScenario: _simulatingScenario,
+                    simulationError: _simulationError,
                     onChangeRole: _changeRole,
+                    onSimulateScenario: _simulateEmergencyScenario,
                   ),
               ],
             ),
@@ -436,6 +663,12 @@ class _LoggedInPageState extends State<LoggedInPage> {
             selectedIcon: Icon(Icons.crisis_alert),
             label: 'Alerts',
           ),
+          if (_isAdmin)
+            const NavigationDestination(
+              icon: Icon(Icons.archive_outlined),
+              selectedIcon: Icon(Icons.archive),
+              label: 'Archive',
+            ),
           if (_isAdmin)
             const NavigationDestination(
               icon: Icon(Icons.admin_panel_settings_outlined),

@@ -1,11 +1,11 @@
 {
-  "name": "CAC 2026",
-  "short_name": "CAC 2026",
+  "name": "FastGuard",
+  "short_name": "FastGuard",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
-  "description": "Flutter frontend for the CAC 2026 app.",
+  "description": "FastGuard emergency reporting app.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": []

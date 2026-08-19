@@ -16,11 +16,13 @@ class AlertsTab extends StatelessWidget {
     required this.broadcastHeadlineController,
     required this.broadcastMessageController,
     required this.publishingGlobalAlert,
+    required this.clearingGlobalAlert,
     required this.loadingReports,
     required this.reportsError,
     required this.reports,
     required this.onRefreshSummary,
     required this.onPublishGlobalAlert,
+    required this.onClearGlobalAlert,
     super.key,
   });
 
@@ -34,11 +36,13 @@ class AlertsTab extends StatelessWidget {
   final TextEditingController broadcastHeadlineController;
   final TextEditingController broadcastMessageController;
   final bool publishingGlobalAlert;
+  final bool clearingGlobalAlert;
   final bool loadingReports;
   final String? reportsError;
   final List<EmergencyReport> reports;
   final VoidCallback onRefreshSummary;
   final VoidCallback onPublishGlobalAlert;
+  final VoidCallback onClearGlobalAlert;
 
   @override
   Widget build(BuildContext context) {
@@ -72,9 +76,12 @@ class AlertsTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _GlobalMessageSection(
+                    isAdmin: isAdmin,
                     loadingGlobalAlert: loadingGlobalAlert,
+                    clearingGlobalAlert: clearingGlobalAlert,
                     globalAlertError: globalAlertError,
                     globalAlert: globalAlert,
+                    onClearGlobalAlert: onClearGlobalAlert,
                   ),
                   if (isAdmin) ...[
                     const SizedBox(height: 24),
@@ -114,14 +121,20 @@ class AlertsTab extends StatelessWidget {
 
 class _GlobalMessageSection extends StatelessWidget {
   const _GlobalMessageSection({
+    required this.isAdmin,
     required this.loadingGlobalAlert,
+    required this.clearingGlobalAlert,
     required this.globalAlertError,
     required this.globalAlert,
+    required this.onClearGlobalAlert,
   });
 
+  final bool isAdmin;
   final bool loadingGlobalAlert;
+  final bool clearingGlobalAlert;
   final String? globalAlertError;
   final GlobalAlert? globalAlert;
+  final VoidCallback onClearGlobalAlert;
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +169,22 @@ class _GlobalMessageSection extends StatelessWidget {
             'Published ${formatTimestamp(globalAlert!.createdAt)} by ${globalAlert!.createdByUsername.isEmpty ? 'an administrator' : globalAlert!.createdByUsername}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
+          if (isAdmin) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: clearingGlobalAlert ? null : onClearGlobalAlert,
+                icon: clearingGlobalAlert
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.clear),
+                label: Text(clearingGlobalAlert ? 'Clearing' : 'Clear message'),
+              ),
+            ),
+          ],
         ],
       ],
     );
@@ -292,12 +321,12 @@ class _EmergencyReportsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Emergency reports',
+          'Reports today',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
         Text(
-          'Administrators can review reports submitted by organization members.',
+          'Reports submitted today by organization members.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),

@@ -6,7 +6,14 @@ from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
-from .models import EmergencyReport, GlobalAlert, Organization, OrganizationMembership
+from .scenarios import SCENARIOS
+from .models import (
+    EmergencyReport,
+    GlobalAlert,
+    Organization,
+    OrganizationMembership,
+    get_archive_day_for_datetime,
+)
 
 
 User = get_user_model()
@@ -70,7 +77,13 @@ class EmergencyReportSerializer(serializers.ModelSerializer):
         membership = user.organization_membership
         validated_data["reported_by"] = user
         validated_data["organization"] = membership.organization
-        return super().create(validated_data)
+        report = super().create(validated_data)
+        report.archive_day = get_archive_day_for_datetime(
+            report.organization,
+            report.created_at,
+        )
+        report.save(update_fields=["archive_day"])
+        return report
 
 
 class GlobalAlertSerializer(serializers.ModelSerializer):
@@ -97,6 +110,10 @@ class PublishGlobalAlertSerializer(serializers.Serializer):
         if not message:
             raise serializers.ValidationError("Message is required.")
         return message
+
+
+class SimulateEmergencySerializer(serializers.Serializer):
+    scenario = serializers.ChoiceField(choices=[(key, value["label"]) for key, value in SCENARIOS.items()])
 
 
 class UserSerializer(serializers.ModelSerializer):

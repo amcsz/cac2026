@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'pages/auth_gate.dart';
 
-class CacApp extends StatelessWidget {
-  const CacApp({super.key});
+class FastGuardApp extends StatelessWidget {
+  const FastGuardApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'CAC 2026',
+      title: 'FastGuard',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xff2f6f73),
