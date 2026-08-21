@@ -19,6 +19,11 @@ def send_global_alert_push(alert):
         ).values_list("token", flat=True)
     )
     if not tokens:
+        logger.info(
+            "No active FCM devices for global alert id=%s organization_id=%s",
+            alert.id,
+            alert.organization_id,
+        )
         return
 
     try:
@@ -48,6 +53,13 @@ def send_global_alert_push(alert):
     )
 
     response = messaging.send_each_for_multicast(message)
+    logger.info(
+        "Sent global alert push alert_id=%s organization_id=%s success=%s failure=%s",
+        alert.id,
+        alert.organization_id,
+        response.success_count,
+        response.failure_count,
+    )
     if response.failure_count:
         _deactivate_failed_tokens(tokens, response.responses)
 
@@ -77,6 +89,7 @@ def _deactivate_failed_tokens(tokens, responses):
     ]
     if invalid_tokens:
         FcmDevice.objects.filter(token__in=invalid_tokens).update(is_active=False)
+        logger.warning("Deactivated %s invalid FCM tokens.", len(invalid_tokens))
 
 
 def _is_invalid_token_error(exception):

@@ -174,6 +174,13 @@ class FcmDeviceView(APIView):
                 "is_active": True,
             },
         )
+        logger.info(
+            "Registered FCM device id=%s user_id=%s organization_id=%s platform=%s",
+            device.id,
+            request.user.id,
+            device.organization_id,
+            device.platform,
+        )
         return Response({"id": device.id}, status=status.HTTP_200_OK)
 
     def delete(self, request):
@@ -181,7 +188,8 @@ class FcmDeviceView(APIView):
         queryset = FcmDevice.objects.filter(user=request.user)
         if token:
             queryset = queryset.filter(token=token)
-        queryset.update(is_active=False)
+        updated = queryset.update(is_active=False)
+        logger.info("Deactivated %s FCM devices for user_id=%s", updated, request.user.id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
