@@ -46,7 +46,7 @@ def send_global_alert_push(alert):
         android=messaging.AndroidConfig(
             priority="high",
             notification=messaging.AndroidNotification(
-                channel_id="fastguard_alerts",
+                channel_id="swiftguard_alerts",
                 priority="high",
             ),
         ),
@@ -117,8 +117,16 @@ def _is_invalid_token_error(exception):
     return code in {
         "registration-token-not-registered",
         "invalid-registration-token",
+        "permission_denied",
         "unregistered",
-    } or "registration token is not a valid fcm registration token" in message
+    } or any(
+        text in message
+        for text in [
+            "registration token is not a valid fcm registration token",
+            "senderid mismatch",
+            "sender id mismatch",
+        ]
+    )
 
 
 def _plain_text(value):

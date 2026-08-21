@@ -20,7 +20,7 @@ fi
 
 if [[ ! "$api_base_url" =~ /api$ ]]; then
   echo "Warning: ApiBaseUrl does not end with /api." >&2
-  echo "FastGuard expects the Django API base URL." >&2
+  echo "SwiftGuard expects the Django API base URL." >&2
 fi
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

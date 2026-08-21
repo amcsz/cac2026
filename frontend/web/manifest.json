@@ -1,11 +1,11 @@
 {
-  "name": "FastGuard",
-  "short_name": "FastGuard",
+  "name": "SwiftGuard",
+  "short_name": "SwiftGuard",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
-  "description": "FastGuard emergency reporting app.",
+  "description": "SwiftGuard emergency reporting app.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": []

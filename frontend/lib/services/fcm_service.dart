@@ -93,7 +93,7 @@ class FcmService {
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final notification = message.notification;
-    final title = notification?.title ?? message.data['title'] ?? 'FastGuard';
+    final title = notification?.title ?? message.data['title'] ?? 'SwiftGuard';
     final body = notification?.body ?? message.data['body'] ?? '';
 
     if (body.toString().trim().isEmpty) {

@@ -1,4 +1,4 @@
-# FastGuard Firebase Cloud Messaging Setup
+# SwiftGuard Firebase Cloud Messaging Setup
 
 ## Firebase console
 

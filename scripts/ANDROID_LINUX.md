@@ -1,4 +1,4 @@
-# FastGuard Android APK on Debian/WSL
+# SwiftGuard Android APK on Debian/WSL
 
 ## One-time setup
 
@@ -51,11 +51,11 @@ frontend/build/app/outputs/flutter-apk/app-release.apk
 ./scripts/install-android-apk.sh
 ```
 
-Then open FastGuard from the Android app drawer.
+Then open SwiftGuard from the Android app drawer.
 
 ## Notes
 
 - This creates an installable Android app, not the local web version.
 - The Cloud Run service must be reachable from the phone.
-- The Cloud Run/IAM layer must allow requests to reach Django. FastGuard login still handles app-level authentication.
+- The Cloud Run/IAM layer must allow requests to reach Django. SwiftGuard login still handles app-level authentication.
 - Android system push notifications are not implemented yet. The installed app still shows in-app emergency/global-alert UI.

@@ -5,5 +5,5 @@ import 'services/fcm_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FcmService.initializeFirebase();
-  runApp(const FastGuardApp());
+  runApp(const SwiftGuardApp());
 }

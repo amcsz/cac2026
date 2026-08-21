@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'pages/auth_gate.dart';
 
-class FastGuardApp extends StatelessWidget {
-  const FastGuardApp({super.key});
+class SwiftGuardApp extends StatelessWidget {
+  const SwiftGuardApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'FastGuard',
+      title: 'SwiftGuard',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xff0f3a5f),

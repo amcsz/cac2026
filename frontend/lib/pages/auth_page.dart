@@ -89,7 +89,7 @@ class _AuthPageState extends State<AuthPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'FastGuard',
+                    'SwiftGuard',
                     textAlign: TextAlign.center,
                     style: textTheme.displaySmall?.copyWith(
                       color: colorScheme.primary,

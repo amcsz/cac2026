@@ -1,3 +1,3 @@
-# FastGuard Frontend
+# SwiftGuard Frontend
 
-Flutter frontend for the FastGuard emergency reporting app.
+Flutter frontend for the SwiftGuard emergency reporting app.

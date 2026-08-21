@@ -30,4 +30,4 @@ echo "Installing $apk_path..."
 adb install -r "$apk_path"
 
 echo
-echo "Installed. Open FastGuard from your Android app drawer."
+echo "Installed. Open SwiftGuard from your Android app drawer."

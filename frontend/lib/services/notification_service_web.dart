@@ -48,7 +48,7 @@ class _WebNotificationService implements NotificationService {
         web.NotificationOptions(
           body: body,
           icon: 'icons/Icon-192.png',
-          tag: 'fastguard-global-alert',
+          tag: 'swiftguard-global-alert',
         ),
       );
     } catch (_) {}

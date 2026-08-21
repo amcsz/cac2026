@@ -38,8 +38,8 @@ class _NativeNotificationService implements NotificationService {
         body: _plainText(body),
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
-            'fastguard_alerts',
-            'FastGuard alerts',
+            'swiftguard_alerts',
+            'SwiftGuard alerts',
             channelDescription: 'Emergency and global alert notifications.',
             importance: Importance.max,
             priority: Priority.high,
@@ -56,7 +56,7 @@ class _NativeNotificationService implements NotificationService {
       return;
     }
 
-    const androidSettings = AndroidInitializationSettings('ic_stat_fastguard');
+    const androidSettings = AndroidInitializationSettings('ic_stat_swiftguard');
     const settings = InitializationSettings(android: androidSettings);
     await _plugin.initialize(settings: settings);
     _initialized = true;

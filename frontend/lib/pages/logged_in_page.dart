@@ -758,7 +758,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
-        title: const Text('FastGuard'),
+        title: const Text('SwiftGuard'),
         actions: [
           IconButton(
             tooltip: 'Organization info',
