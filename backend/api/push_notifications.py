@@ -61,6 +61,7 @@ def send_global_alert_push(alert):
         response.failure_count,
     )
     if response.failure_count:
+        _log_failed_tokens(tokens, response.responses)
         _deactivate_failed_tokens(tokens, response.responses)
 
 
@@ -92,12 +93,32 @@ def _deactivate_failed_tokens(tokens, responses):
         logger.warning("Deactivated %s invalid FCM tokens.", len(invalid_tokens))
 
 
+def _log_failed_tokens(tokens, responses):
+    for token, response in zip(tokens, responses):
+        if response.success:
+            continue
+
+        exception = response.exception
+        logger.warning(
+            "FCM push failure token_suffix=%s exception_type=%s code=%s message=%s",
+            token[-12:],
+            exception.__class__.__name__ if exception else "None",
+            getattr(exception, "code", ""),
+            str(exception),
+        )
+
+
 def _is_invalid_token_error(exception):
+    if exception is None:
+        return False
+
     code = getattr(exception, "code", "")
+    message = str(exception).lower()
     return code in {
         "registration-token-not-registered",
         "invalid-registration-token",
-    }
+        "unregistered",
+    } or "registration token is not a valid fcm registration token" in message
 
 
 def _plain_text(value):
