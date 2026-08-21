@@ -19,7 +19,7 @@ def send_global_alert_push(alert):
         ).values_list("token", flat=True)
     )
     if not tokens:
-        logger.info(
+        logger.warning(
             "No active FCM devices for global alert id=%s organization_id=%s",
             alert.id,
             alert.organization_id,
@@ -53,7 +53,7 @@ def send_global_alert_push(alert):
     )
 
     response = messaging.send_each_for_multicast(message)
-    logger.info(
+    logger.warning(
         "Sent global alert push alert_id=%s organization_id=%s success=%s failure=%s",
         alert.id,
         alert.organization_id,

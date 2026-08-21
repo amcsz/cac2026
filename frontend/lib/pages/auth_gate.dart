@@ -117,12 +117,12 @@ class _AuthGateState extends State<AuthGate> {
     }
   }
 
-  void _startFcmForSession(AuthSession? session) {
+  Future<void> _startFcmForSession(AuthSession? session) async {
     if (session == null) {
       return;
     }
 
-    _fcmService?.stop();
+    await _fcmService?.stopListening();
     final service = FcmService(
       apiClient: ApiClient(token: session.token),
       notificationService: createNotificationService(),

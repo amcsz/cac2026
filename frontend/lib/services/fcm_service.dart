@@ -63,10 +63,7 @@ class FcmService {
   }
 
   Future<void> stop() async {
-    await _tokenRefreshSubscription?.cancel();
-    await _foregroundMessageSubscription?.cancel();
-    _tokenRefreshSubscription = null;
-    _foregroundMessageSubscription = null;
+    await stopListening();
 
     if (kIsWeb) {
       return;
@@ -76,6 +73,13 @@ class FcmService {
       final token = await FirebaseMessaging.instance.getToken();
       await apiClient.unregisterFcmDevice(fcmToken: token);
     } catch (_) {}
+  }
+
+  Future<void> stopListening() async {
+    await _tokenRefreshSubscription?.cancel();
+    await _foregroundMessageSubscription?.cancel();
+    _tokenRefreshSubscription = null;
+    _foregroundMessageSubscription = null;
   }
 
   Future<void> _registerToken(String token) async {

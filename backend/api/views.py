@@ -174,7 +174,7 @@ class FcmDeviceView(APIView):
                 "is_active": True,
             },
         )
-        logger.info(
+        logger.warning(
             "Registered FCM device id=%s user_id=%s organization_id=%s platform=%s",
             device.id,
             request.user.id,
@@ -189,7 +189,7 @@ class FcmDeviceView(APIView):
         if token:
             queryset = queryset.filter(token=token)
         updated = queryset.update(is_active=False)
-        logger.info("Deactivated %s FCM devices for user_id=%s", updated, request.user.id)
+        logger.warning("Deactivated %s FCM devices for user_id=%s", updated, request.user.id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
