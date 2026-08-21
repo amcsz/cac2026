@@ -13,11 +13,15 @@ class _NativeNotificationService implements NotificationService {
 
   @override
   Future<bool> requestPermission() async {
-    await _initialize();
+    try {
+      await _initialize();
 
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    return await android?.requestNotificationsPermission() ?? true;
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      return await android?.requestNotificationsPermission() ?? true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -25,24 +29,26 @@ class _NativeNotificationService implements NotificationService {
     required String title,
     required String body,
   }) async {
-    await _initialize();
+    try {
+      await _initialize();
 
-    await _plugin.show(
-      id: DateTime.now().millisecondsSinceEpoch.remainder(1000000),
-      title: _plainText(title),
-      body: _plainText(body),
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'fastguard_alerts',
-          'FastGuard alerts',
-          channelDescription: 'Emergency and global alert notifications.',
-          importance: Importance.max,
-          priority: Priority.high,
-          category: AndroidNotificationCategory.alarm,
-          visibility: NotificationVisibility.public,
+      await _plugin.show(
+        id: DateTime.now().millisecondsSinceEpoch.remainder(1000000),
+        title: _plainText(title),
+        body: _plainText(body),
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'fastguard_alerts',
+            'FastGuard alerts',
+            channelDescription: 'Emergency and global alert notifications.',
+            importance: Importance.max,
+            priority: Priority.high,
+            category: AndroidNotificationCategory.alarm,
+            visibility: NotificationVisibility.public,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (_) {}
   }
 
   Future<void> _initialize() async {

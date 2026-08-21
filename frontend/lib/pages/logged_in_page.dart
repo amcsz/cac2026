@@ -132,7 +132,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
   }
 
   Future<void> _requestNotificationPermission() async {
-    await _notificationService.requestPermission();
+    try {
+      await _notificationService.requestPermission();
+    } catch (_) {}
   }
 
   void _startGlobalAlertPolling() {
@@ -430,10 +432,12 @@ class _LoggedInPageState extends State<LoggedInPage> {
   }
 
   Future<void> _showGlobalAlertNotification(GlobalAlert alert) async {
-    await _notificationService.show(
-      title: alert.headline,
-      body: alert.message,
-    );
+    try {
+      await _notificationService.show(
+        title: alert.headline,
+        body: alert.message,
+      );
+    } catch (_) {}
   }
 
   Future<void> _publishGlobalAlert() async {

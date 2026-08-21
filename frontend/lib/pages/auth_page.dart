@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/auth_session.dart';
 import '../services/api_client.dart';
 import '../config/app_config.dart';
-import '../services/notification_service.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({required this.onAuthenticated, super.key});
@@ -22,7 +21,6 @@ class _AuthPageState extends State<AuthPage> {
   bool _registering = false;
   bool _submitting = false;
   String? _error;
-  final NotificationService _notificationService = createNotificationService();
 
   @override
   void dispose() {
@@ -43,7 +41,6 @@ class _AuthPageState extends State<AuthPage> {
     });
 
     try {
-      await _notificationService.requestPermission();
       const api = ApiClient();
       final session = _registering
           ? await api.register(
