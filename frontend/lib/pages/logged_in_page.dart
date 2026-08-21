@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -432,6 +433,10 @@ class _LoggedInPageState extends State<LoggedInPage> {
   }
 
   Future<void> _showGlobalAlertNotification(GlobalAlert alert) async {
+    if (!kIsWeb) {
+      return;
+    }
+
     try {
       await _notificationService.show(
         title: alert.headline,

@@ -28,8 +28,22 @@ repo_root="$(cd -- "$script_dir/.." && pwd)"
 frontend_dir="$repo_root/frontend"
 android_dir="$frontend_dir/android"
 local_properties="$android_dir/local.properties"
+google_services_file="$android_dir/app/google-services.json"
 
 required_ndk_version="28.2.13676358"
+
+if [[ ! -f "$google_services_file" ]]; then
+  cat >&2 <<EOF
+Firebase Android config is missing:
+  $google_services_file
+
+Download google-services.json from Firebase Console for Android package:
+  com.example.cac2026_frontend
+
+Then rerun this build script.
+EOF
+  exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # Find sdkmanager

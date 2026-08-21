@@ -16,15 +16,18 @@ from .ai_summary import (
 from .models import (
     ArchiveDay,
     EmergencyReport,
+    FcmDevice,
     GlobalAlert,
     OrganizationMembership,
     get_archive_day_for_datetime,
 )
+from .push_notifications import send_global_alert_push
 from .scenarios import SCENARIOS, generate_scenario_reports
 from .serializers import (
     AuthResponseSerializer,
     CreateOrganizationSerializer,
     EmergencyReportSerializer,
+    FcmDeviceSerializer,
     GlobalAlertSerializer,
     JoinOrganizationSerializer,
     LoginSerializer,
@@ -151,6 +154,34 @@ class LogoutView(APIView):
     def post(self, request):
         if request.auth is not None:
             request.auth.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FcmDeviceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = FcmDeviceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        membership = getattr(request.user, "organization_membership", None)
+        device, _ = FcmDevice.objects.update_or_create(
+            token=serializer.validated_data["token"],
+            defaults={
+                "user": request.user,
+                "organization": membership.organization if membership else None,
+                "platform": serializer.validated_data["platform"],
+                "is_active": True,
+            },
+        )
+        return Response({"id": device.id}, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        token = str(request.data.get("token", "")).strip()
+        queryset = FcmDevice.objects.filter(user=request.user)
+        if token:
+            queryset = queryset.filter(token=token)
+        queryset.update(is_active=False)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -445,6 +476,7 @@ class GlobalAlertView(APIView):
             alert.created_at,
         )
         alert.save(update_fields=["archive_day"])
+        send_global_alert_push(alert)
         return Response(GlobalAlertSerializer(alert).data, status=status.HTTP_201_CREATED)
 
     def delete(self, request):

@@ -68,6 +68,37 @@ class ApiClient {
     );
   }
 
+  Future<void> registerFcmDevice({
+    required String fcmToken,
+    required String platform,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/auth/fcm-device/'),
+      headers: _headers,
+      body: jsonEncode({'token': fcmToken, 'platform': platform}),
+    );
+
+    if (response.statusCode == 200) {
+      return;
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<void> unregisterFcmDevice({String? fcmToken}) async {
+    final response = await http.delete(
+      Uri.parse('${AppConfig.apiBaseUrl}/auth/fcm-device/'),
+      headers: _headers,
+      body: fcmToken == null ? null : jsonEncode({'token': fcmToken}),
+    );
+
+    if (response.statusCode == 204) {
+      return;
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
   Future<AppUser> me() async {
     final response = await http.get(
       Uri.parse('${AppConfig.apiBaseUrl}/auth/me/'),
@@ -192,7 +223,8 @@ class ApiClient {
     int page = 1,
   }) async {
     final response = await http.get(
-      Uri.parse('${AppConfig.apiBaseUrl}/reports/archive/?date=$date&page=$page'),
+      Uri.parse(
+          '${AppConfig.apiBaseUrl}/reports/archive/?date=$date&page=$page'),
       headers: _headers,
     );
 

@@ -178,3 +178,39 @@ class DailyAlertSummary(models.Model):
 
     def __str__(self):
         return f"{self.organization} summary for {self.date}"
+
+
+class FcmDevice(models.Model):
+    PLATFORM_ANDROID = "android"
+    PLATFORM_IOS = "ios"
+    PLATFORM_WEB = "web"
+
+    PLATFORM_CHOICES = [
+        (PLATFORM_ANDROID, "Android"),
+        (PLATFORM_IOS, "iOS"),
+        (PLATFORM_WEB, "Web"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="fcm_devices",
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="fcm_devices",
+        null=True,
+        blank=True,
+    )
+    token = models.TextField(unique=True)
+    platform = models.CharField(max_length=20, choices=PLATFORM_CHOICES)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"{self.user} {self.platform} FCM device"

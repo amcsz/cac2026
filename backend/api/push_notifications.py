@@ -1,0 +1,97 @@
+import json
+import logging
+
+import firebase_admin
+from django.conf import settings
+from firebase_admin import credentials, messaging
+
+from .models import FcmDevice
+
+
+logger = logging.getLogger(__name__)
+
+
+def send_global_alert_push(alert):
+    tokens = list(
+        FcmDevice.objects.filter(
+            organization=alert.organization,
+            is_active=True,
+        ).values_list("token", flat=True)
+    )
+    if not tokens:
+        return
+
+    try:
+        _ensure_firebase_app()
+    except Exception:
+        logger.exception("Firebase Admin is not configured; push not sent.")
+        return
+
+    message = messaging.MulticastMessage(
+        tokens=tokens,
+        notification=messaging.Notification(
+            title=alert.headline,
+            body=_plain_text(alert.message),
+        ),
+        data={
+            "type": "global_alert",
+            "alert_id": str(alert.id),
+            "organization_id": str(alert.organization_id),
+        },
+        android=messaging.AndroidConfig(
+            priority="high",
+            notification=messaging.AndroidNotification(
+                channel_id="fastguard_alerts",
+                priority="high",
+            ),
+        ),
+    )
+
+    response = messaging.send_each_for_multicast(message)
+    if response.failure_count:
+        _deactivate_failed_tokens(tokens, response.responses)
+
+
+def _ensure_firebase_app():
+    if firebase_admin._apps:
+        return
+
+    credentials_json = getattr(settings, "FIREBASE_CREDENTIALS_JSON", "")
+    credentials_file = getattr(settings, "FIREBASE_CREDENTIALS_FILE", "")
+
+    if credentials_json:
+        credential = credentials.Certificate(json.loads(credentials_json))
+    elif credentials_file:
+        credential = credentials.Certificate(credentials_file)
+    else:
+        credential = credentials.ApplicationDefault()
+
+    firebase_admin.initialize_app(credential)
+
+
+def _deactivate_failed_tokens(tokens, responses):
+    invalid_tokens = [
+        token
+        for token, response in zip(tokens, responses)
+        if not response.success and _is_invalid_token_error(response.exception)
+    ]
+    if invalid_tokens:
+        FcmDevice.objects.filter(token__in=invalid_tokens).update(is_active=False)
+
+
+def _is_invalid_token_error(exception):
+    code = getattr(exception, "code", "")
+    return code in {
+        "registration-token-not-registered",
+        "invalid-registration-token",
+    }
+
+
+def _plain_text(value):
+    return (
+        value.replace("**", "")
+        .replace("_", "")
+        .replace("`", "")
+        .replace("#", "")
+        .strip()
+    )

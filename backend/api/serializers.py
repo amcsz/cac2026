@@ -9,6 +9,7 @@ from rest_framework.authtoken.models import Token
 from .scenarios import SCENARIOS
 from .models import (
     EmergencyReport,
+    FcmDevice,
     GlobalAlert,
     Organization,
     OrganizationMembership,
@@ -114,6 +115,17 @@ class PublishGlobalAlertSerializer(serializers.Serializer):
 
 class SimulateEmergencySerializer(serializers.Serializer):
     scenario = serializers.ChoiceField(choices=[(key, value["label"]) for key, value in SCENARIOS.items()])
+
+
+class FcmDeviceSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    platform = serializers.ChoiceField(choices=FcmDevice.PLATFORM_CHOICES)
+
+    def validate_token(self, value):
+        token = value.strip()
+        if not token:
+            raise serializers.ValidationError("FCM token is required.")
+        return token
 
 
 class UserSerializer(serializers.ModelSerializer):
