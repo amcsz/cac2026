@@ -98,7 +98,7 @@ class _AuthPageState extends State<AuthPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'AI emergency reporting designed to keep you safe.',
+                    'Real-time AI alerts for a safer, connected community.',
                     textAlign: TextAlign.center,
                     style: textTheme.bodyLarge?.copyWith(
                       color: colorScheme.onSurfaceVariant,

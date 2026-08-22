@@ -121,6 +121,57 @@ class EmergencyReport(models.Model):
         return f"{self.get_emergency_type_display()} reported in {self.location}"
 
 
+class ReportConversation(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="report_conversations",
+    )
+    report = models.OneToOneField(
+        EmergencyReport,
+        on_delete=models.CASCADE,
+        related_name="conversation",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_report_conversations",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"Conversation for report {self.report_id}"
+
+
+class ReportMessage(models.Model):
+    conversation = models.ForeignKey(
+        ReportConversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="report_messages",
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Message in conversation {self.conversation_id}"
+
+
 class GlobalAlert(models.Model):
     organization = models.ForeignKey(
         Organization,

@@ -310,6 +310,81 @@ class ApiClient {
     throw ApiException(_extractError(response));
   }
 
+  Future<List<ReportConversation>> fetchReportConversations() async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/communications/'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as List<dynamic>;
+      return decoded
+          .map((item) =>
+              ReportConversation.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<ReportConversation> createReportConversation({
+    required int reportId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/communications/'),
+      headers: _headers,
+      body: jsonEncode({'report_id': reportId}),
+    );
+
+    if (response.statusCode == 201) {
+      return ReportConversation.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+      );
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<List<ReportChatMessage>> fetchConversationMessages({
+    required int conversationId,
+  }) async {
+    final response = await http.get(
+      Uri.parse(
+          '${AppConfig.apiBaseUrl}/communications/$conversationId/messages/'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as List<dynamic>;
+      return decoded
+          .map((item) =>
+              ReportChatMessage.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
+  Future<ReportChatMessage> sendConversationMessage({
+    required int conversationId,
+    required String body,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+          '${AppConfig.apiBaseUrl}/communications/$conversationId/messages/'),
+      headers: _headers,
+      body: jsonEncode({'body': body}),
+    );
+
+    if (response.statusCode == 201) {
+      return ReportChatMessage.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+      );
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
   Future<void> clearGlobalAlert() async {
     final response = await http.delete(
       Uri.parse('${AppConfig.apiBaseUrl}/alerts/global/'),

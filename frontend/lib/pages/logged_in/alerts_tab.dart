@@ -7,8 +7,6 @@ import '../../widgets/markdown_text.dart';
 class AlertsTab extends StatelessWidget {
   const AlertsTab({
     required this.isAdmin,
-    required this.loadingGlobalAlert,
-    required this.globalAlertError,
     required this.globalAlert,
     required this.loadingAlertSummary,
     required this.alertSummaryError,
@@ -25,8 +23,6 @@ class AlertsTab extends StatelessWidget {
   });
 
   final bool isAdmin;
-  final bool loadingGlobalAlert;
-  final String? globalAlertError;
   final GlobalAlert? globalAlert;
   final bool loadingAlertSummary;
   final String? alertSummaryError;
@@ -55,25 +51,21 @@ class AlertsTab extends StatelessWidget {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 16),
-              _GlobalMessageSection(
+              if (isAdmin && globalAlert != null)
+                _ClearGlobalMessageButton(
+                  clearingGlobalAlert: clearingGlobalAlert,
+                  onClearGlobalAlert: onClearGlobalAlert,
+                ),
+              if (globalAlert != null && isAdmin) const SizedBox(height: 24),
+              _EmergencySummarySection(
                 isAdmin: isAdmin,
-                loadingGlobalAlert: loadingGlobalAlert,
-                clearingGlobalAlert: clearingGlobalAlert,
-                globalAlertError: globalAlertError,
-                globalAlert: globalAlert,
-                onClearGlobalAlert: onClearGlobalAlert,
+                loadingAlertSummary: loadingAlertSummary,
+                alertSummaryError: alertSummaryError,
+                alertSummary: alertSummary,
+                todayReportCount: todayReportCount,
+                onOpenReportsSidebar: onOpenReportsSidebar,
               ),
               if (isAdmin) ...[
-                const SizedBox(height: 24),
-                const Divider(),
-                const SizedBox(height: 24),
-                _EmergencySummarySection(
-                  loadingAlertSummary: loadingAlertSummary,
-                  alertSummaryError: alertSummaryError,
-                  alertSummary: alertSummary,
-                  todayReportCount: todayReportCount,
-                  onOpenReportsSidebar: onOpenReportsSidebar,
-                ),
                 const SizedBox(height: 24),
                 _RelayGlobalMessageSection(
                   broadcastHeadlineController: broadcastHeadlineController,
@@ -90,110 +82,36 @@ class AlertsTab extends StatelessWidget {
   }
 }
 
-class _GlobalMessageSection extends StatelessWidget {
-  const _GlobalMessageSection({
-    required this.isAdmin,
-    required this.loadingGlobalAlert,
+class _ClearGlobalMessageButton extends StatelessWidget {
+  const _ClearGlobalMessageButton({
     required this.clearingGlobalAlert,
-    required this.globalAlertError,
-    required this.globalAlert,
     required this.onClearGlobalAlert,
   });
 
-  final bool isAdmin;
-  final bool loadingGlobalAlert;
   final bool clearingGlobalAlert;
-  final String? globalAlertError;
-  final GlobalAlert? globalAlert;
   final VoidCallback onClearGlobalAlert;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Global message',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        if (loadingGlobalAlert)
-          const Center(child: CircularProgressIndicator())
-        else if (globalAlertError != null)
-          Text(
-            globalAlertError!,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.error,
-            ),
-          )
-        else if (globalAlert == null)
-          const Text('No global message has been published.')
-        else
-          _ExpandedGlobalMessage(
-            isAdmin: isAdmin,
-            clearingGlobalAlert: clearingGlobalAlert,
-            globalAlert: globalAlert!,
-            onClearGlobalAlert: onClearGlobalAlert,
-          ),
-      ],
-    );
-  }
-}
-
-class _ExpandedGlobalMessage extends StatelessWidget {
-  const _ExpandedGlobalMessage({
-    required this.isAdmin,
-    required this.clearingGlobalAlert,
-    required this.globalAlert,
-    required this.onClearGlobalAlert,
-  });
-
-  final bool isAdmin;
-  final bool clearingGlobalAlert;
-  final GlobalAlert globalAlert;
-  final VoidCallback onClearGlobalAlert;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          globalAlert.headline,
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 8),
-        MarkdownText(globalAlert.message),
-        const SizedBox(height: 8),
-        Text(
-          'Published ${formatTimestamp(globalAlert.createdAt)} by ${globalAlert.createdByUsername.isEmpty ? 'an administrator' : globalAlert.createdByUsername}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        if (isAdmin) ...[
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton.icon(
-              onPressed: clearingGlobalAlert ? null : onClearGlobalAlert,
-              icon: clearingGlobalAlert
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.clear),
-              label: Text(
-                clearingGlobalAlert ? 'Clearing' : 'Clear message',
-              ),
-            ),
-          ),
-        ],
-      ],
+    return Align(
+      alignment: Alignment.centerRight,
+      child: OutlinedButton.icon(
+        onPressed: clearingGlobalAlert ? null : onClearGlobalAlert,
+        icon: clearingGlobalAlert
+            ? const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.clear),
+        label: Text(clearingGlobalAlert ? 'Clearing' : 'Clear global alert'),
+      ),
     );
   }
 }
 
 class _EmergencySummarySection extends StatelessWidget {
   const _EmergencySummarySection({
+    required this.isAdmin,
     required this.loadingAlertSummary,
     required this.alertSummaryError,
     required this.alertSummary,
@@ -201,6 +119,7 @@ class _EmergencySummarySection extends StatelessWidget {
     required this.onOpenReportsSidebar,
   });
 
+  final bool isAdmin;
   final bool loadingAlertSummary;
   final String? alertSummaryError;
   final AlertSummary? alertSummary;
@@ -240,12 +159,14 @@ class _EmergencySummarySection extends StatelessWidget {
             'Based on ${alertSummary!.reportCount} reports from today.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: onOpenReportsSidebar,
-            icon: const Icon(Icons.article_outlined),
-            label: Text('Reports today ($todayReportCount)'),
-          ),
+          if (isAdmin) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: onOpenReportsSidebar,
+              icon: const Icon(Icons.article_outlined),
+              label: Text('Reports today ($todayReportCount)'),
+            ),
+          ],
         ],
       ],
     );
@@ -320,14 +241,18 @@ class TodayReportsSidebar extends StatelessWidget {
     required this.loadingReports,
     required this.reportsError,
     required this.reports,
+    required this.respondingReportId,
     required this.onRefresh,
+    required this.onRespondToReport,
     super.key,
   });
 
   final bool loadingReports;
   final String? reportsError;
   final List<EmergencyReport> reports;
+  final int? respondingReportId;
   final VoidCallback onRefresh;
+  final ValueChanged<EmergencyReport> onRespondToReport;
 
   @override
   Widget build(BuildContext context) {
@@ -377,6 +302,8 @@ class TodayReportsSidebar extends StatelessWidget {
                 loadingReports: loadingReports,
                 reportsError: reportsError,
                 reports: reports,
+                respondingReportId: respondingReportId,
+                onRespondToReport: onRespondToReport,
               ),
             ),
           ],
@@ -391,11 +318,15 @@ class _TodayReportsList extends StatelessWidget {
     required this.loadingReports,
     required this.reportsError,
     required this.reports,
+    required this.respondingReportId,
+    required this.onRespondToReport,
   });
 
   final bool loadingReports;
   final String? reportsError;
   final List<EmergencyReport> reports;
+  final int? respondingReportId;
+  final ValueChanged<EmergencyReport> onRespondToReport;
 
   @override
   Widget build(BuildContext context) {
@@ -428,11 +359,25 @@ class _TodayReportsList extends StatelessWidget {
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final report = reports[index];
+        final responding = respondingReportId == report.id;
         return ListTile(
           leading: const Icon(Icons.warning_amber_rounded),
           title: Text(report.emergencyTypeLabel),
           subtitle: Text(
             'Sent ${formatTimestamp(report.createdAt)} by ${report.reportedByUsername}\n${report.location}\n${report.details.isEmpty ? 'No additional details provided.' : report.details}',
+          ),
+          isThreeLine: true,
+          trailing: FilledButton.icon(
+            onPressed: respondingReportId == null
+                ? () => onRespondToReport(report)
+                : null,
+            icon: responding
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.forum_outlined),
+            label: Text(responding ? 'Opening' : 'Respond'),
           ),
         );
       },

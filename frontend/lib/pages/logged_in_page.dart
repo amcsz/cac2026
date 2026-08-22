@@ -14,6 +14,7 @@ import '../widgets/info_row.dart';
 import '../widgets/markdown_text.dart';
 import 'logged_in/alerts_tab.dart';
 import 'logged_in/archive_tab.dart';
+import 'logged_in/communication_tab.dart';
 import 'logged_in/manage_tab.dart';
 import 'logged_in/report_tab.dart';
 
@@ -70,10 +71,8 @@ class _LoggedInPageState extends State<LoggedInPage> {
   String? _acknowledgedAlertSummaryGeneratedAt;
   bool _urgentSummaryNoticeVisible = false;
 
-  bool _loadingGlobalAlert = false;
   bool _publishingGlobalAlert = false;
   bool _clearingGlobalAlert = false;
-  String? _globalAlertError;
   GlobalAlert? _globalAlert;
   int? _lastGlobalAlertId;
   bool _hasLoadedGlobalAlert = false;
@@ -81,6 +80,16 @@ class _LoggedInPageState extends State<LoggedInPage> {
   final Set<int> _dismissedFullScreenGlobalAlertIds = {};
   Timer? _globalAlertPoller;
   Timer? _alertSummaryPoller;
+
+  bool _loadingConversations = false;
+  String? _conversationsError;
+  List<ReportConversation> _conversations = [];
+  int? _selectedConversationId;
+  bool _loadingMessages = false;
+  String? _messagesError;
+  List<ReportChatMessage> _messages = [];
+  bool _sendingMessage = false;
+  int? _respondingReportId;
 
   int _selectedIndex = 0;
   bool _showReportForm = false;
@@ -96,6 +105,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
       TextEditingController();
   final TextEditingController _broadcastMessageController =
       TextEditingController();
+  final TextEditingController _chatMessageController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _detailsController = TextEditingController();
   final NotificationService _notificationService = createNotificationService();
@@ -111,13 +121,14 @@ class _LoggedInPageState extends State<LoggedInPage> {
     super.initState();
     _requestNotificationPermission();
     _loadGlobalAlert(notifyIfChanged: false);
+    _loadConversations();
     _startGlobalAlertPolling();
+    _loadAlertSummary();
+    _startAlertSummaryPolling();
     if (_isAdmin) {
       _loadMembers();
       _loadReports();
       _loadArchiveDays();
-      _loadAlertSummary();
-      _startAlertSummaryPolling();
     }
   }
 
@@ -127,6 +138,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
     _alertSummaryPoller?.cancel();
     _broadcastHeadlineController.dispose();
     _broadcastMessageController.dispose();
+    _chatMessageController.dispose();
     _locationController.dispose();
     _detailsController.dispose();
     super.dispose();
@@ -147,10 +159,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
   }
 
   void _startAlertSummaryPolling() {
-    if (!_isAdmin) {
-      return;
-    }
-
     _alertSummaryPoller?.cancel();
     _alertSummaryPoller = Timer.periodic(
       _alertSummaryPollInterval,
@@ -312,10 +320,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
     bool showLoading = true,
     bool notifyIfChanged = true,
   }) async {
-    if (!_isAdmin) {
-      return;
-    }
-
     if (showLoading) {
       setState(() {
         _loadingAlertSummary = true;
@@ -388,13 +392,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
     bool showLoading = true,
     bool notifyIfChanged = true,
   }) async {
-    if (showLoading) {
-      setState(() {
-        _loadingGlobalAlert = true;
-        _globalAlertError = null;
-      });
-    }
-
     try {
       final alert = await ApiClient(token: widget.token).fetchGlobalAlert();
       if (mounted) {
@@ -418,17 +415,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
         }
       }
     } on ApiException catch (error) {
-      if (mounted) {
-        setState(() => _globalAlertError = error.message);
-      }
+      debugPrint('Could not load global alert: ${error.message}');
     } catch (_) {
-      if (mounted) {
-        setState(() => _globalAlertError = 'Could not load global alert.');
-      }
-    } finally {
-      if (mounted && showLoading) {
-        setState(() => _loadingGlobalAlert = false);
-      }
+      debugPrint('Could not load global alert.');
     }
   }
 
@@ -449,14 +438,10 @@ class _LoggedInPageState extends State<LoggedInPage> {
     final headline = _broadcastHeadlineController.text.trim();
     final message = _broadcastMessageController.text.trim();
     if (headline.isEmpty || message.isEmpty || _publishingGlobalAlert) {
-      setState(() => _globalAlertError = 'Headline and message are required.');
       return;
     }
 
-    setState(() {
-      _publishingGlobalAlert = true;
-      _globalAlertError = null;
-    });
+    setState(() => _publishingGlobalAlert = true);
 
     try {
       final alert = await ApiClient(token: widget.token).publishGlobalAlert(
@@ -473,13 +458,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
         await _showGlobalAlertNotification(alert);
       }
     } on ApiException catch (error) {
-      if (mounted) {
-        setState(() => _globalAlertError = error.message);
-      }
+      debugPrint('Could not publish global alert: ${error.message}');
     } catch (_) {
-      if (mounted) {
-        setState(() => _globalAlertError = 'Could not publish global alert.');
-      }
+      debugPrint('Could not publish global alert.');
     } finally {
       if (mounted) {
         setState(() => _publishingGlobalAlert = false);
@@ -515,10 +496,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
       return;
     }
 
-    setState(() {
-      _clearingGlobalAlert = true;
-      _globalAlertError = null;
-    });
+    setState(() => _clearingGlobalAlert = true);
 
     try {
       await ApiClient(token: widget.token).clearGlobalAlert();
@@ -531,16 +509,162 @@ class _LoggedInPageState extends State<LoggedInPage> {
         });
       }
     } on ApiException catch (error) {
-      if (mounted) {
-        setState(() => _globalAlertError = error.message);
-      }
+      debugPrint('Could not clear global alert: ${error.message}');
     } catch (_) {
-      if (mounted) {
-        setState(() => _globalAlertError = 'Could not clear global alert.');
-      }
+      debugPrint('Could not clear global alert.');
     } finally {
       if (mounted) {
         setState(() => _clearingGlobalAlert = false);
+      }
+    }
+  }
+
+  Future<void> _loadConversations({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _loadingConversations = true;
+        _conversationsError = null;
+      });
+    }
+
+    try {
+      final conversations =
+          await ApiClient(token: widget.token).fetchReportConversations();
+      if (mounted) {
+        setState(() {
+          _conversations = conversations;
+          if (_selectedConversationId != null &&
+              !conversations.any((conversation) =>
+                  conversation.id == _selectedConversationId)) {
+            _selectedConversationId = null;
+            _messages = [];
+          }
+        });
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _conversationsError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _conversationsError = 'Could not load communications.');
+      }
+    } finally {
+      if (mounted && showLoading) {
+        setState(() => _loadingConversations = false);
+      }
+    }
+  }
+
+  Future<void> _loadConversationMessages(int conversationId) async {
+    setState(() {
+      _selectedConversationId = conversationId;
+      _loadingMessages = true;
+      _messagesError = null;
+    });
+
+    try {
+      final messages = await ApiClient(token: widget.token)
+          .fetchConversationMessages(conversationId: conversationId);
+      if (mounted) {
+        setState(() => _messages = messages);
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _messagesError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _messagesError = 'Could not load messages.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingMessages = false);
+      }
+    }
+  }
+
+  Future<void> _openConversation(ReportConversation conversation) async {
+    await _loadConversationMessages(conversation.id);
+  }
+
+  void _backToConversations() {
+    setState(() {
+      _selectedConversationId = null;
+      _messages = [];
+      _messagesError = null;
+    });
+  }
+
+  Future<void> _respondToReport(EmergencyReport report) async {
+    if (!_isAdmin || _respondingReportId != null) {
+      return;
+    }
+
+    setState(() {
+      _respondingReportId = report.id;
+      _conversationsError = null;
+    });
+
+    try {
+      final conversation = await ApiClient(token: widget.token)
+          .createReportConversation(reportId: report.id);
+      await _loadConversations(showLoading: false);
+      if (mounted) {
+        setState(() => _selectedIndex = 2);
+        if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
+          Navigator.pop(context);
+        }
+      }
+      await _loadConversationMessages(conversation.id);
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _reportsError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _reportsError = 'Could not open a response chat.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _respondingReportId = null);
+      }
+    }
+  }
+
+  Future<void> _sendConversationMessage() async {
+    final conversationId = _selectedConversationId;
+    final body = _chatMessageController.text.trim();
+    if (conversationId == null || body.isEmpty || _sendingMessage) {
+      return;
+    }
+
+    setState(() {
+      _sendingMessage = true;
+      _messagesError = null;
+    });
+
+    try {
+      final message = await ApiClient(token: widget.token)
+          .sendConversationMessage(conversationId: conversationId, body: body);
+      if (mounted) {
+        setState(() {
+          _chatMessageController.clear();
+          _messages = [..._messages, message];
+        });
+      }
+      _loadConversations(showLoading: false);
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _messagesError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _messagesError = 'Could not send the message.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sendingMessage = false);
       }
     }
   }
@@ -732,14 +856,18 @@ class _LoggedInPageState extends State<LoggedInPage> {
 
     if (index == 1) {
       _loadGlobalAlert(showLoading: false);
+      _loadAlertSummary(showLoading: false);
     }
     if (index == 1 && _isAdmin) {
       _loadReports();
     }
-    if (index == 2 && _isAdmin) {
-      _loadArchiveDays(page: _archiveDaysPage);
+    if (index == 2) {
+      _loadConversations();
     }
     if (index == 3 && _isAdmin) {
+      _loadArchiveDays(page: _archiveDaysPage);
+    }
+    if (index == 4 && _isAdmin) {
       _loadMembers();
     }
   }
@@ -814,8 +942,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
                 ),
                 AlertsTab(
                   isAdmin: _isAdmin,
-                  loadingGlobalAlert: _loadingGlobalAlert,
-                  globalAlertError: _globalAlertError,
                   globalAlert: _globalAlert,
                   loadingAlertSummary: _loadingAlertSummary,
                   alertSummaryError: _alertSummaryError,
@@ -828,6 +954,22 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   onOpenReportsSidebar: _openTodayReportsSidebar,
                   onPublishGlobalAlert: _publishGlobalAlert,
                   onClearGlobalAlert: _clearGlobalAlert,
+                ),
+                CommunicationTab(
+                  isAdmin: _isAdmin,
+                  loadingConversations: _loadingConversations,
+                  conversationsError: _conversationsError,
+                  conversations: _conversations,
+                  selectedConversationId: _selectedConversationId,
+                  loadingMessages: _loadingMessages,
+                  messagesError: _messagesError,
+                  messages: _messages,
+                  sendingMessage: _sendingMessage,
+                  messageController: _chatMessageController,
+                  onRefreshConversations: _loadConversations,
+                  onSelectConversation: _openConversation,
+                  onBackToConversations: _backToConversations,
+                  onSendMessage: _sendConversationMessage,
                 ),
                 if (_isAdmin)
                   ArchiveTab(
@@ -879,7 +1021,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
               loadingReports: _loadingReports,
               reportsError: _reportsError,
               reports: _reports,
+              respondingReportId: _respondingReportId,
               onRefresh: _loadReports,
+              onRespondToReport: _respondToReport,
             )
           : null,
       bottomNavigationBar: NavigationBar(
@@ -895,6 +1039,11 @@ class _LoggedInPageState extends State<LoggedInPage> {
             icon: Icon(Icons.crisis_alert_outlined),
             selectedIcon: Icon(Icons.crisis_alert),
             label: 'Alerts',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.forum_outlined),
+            selectedIcon: Icon(Icons.forum),
+            label: 'Comms',
           ),
           if (_isAdmin)
             const NavigationDestination(

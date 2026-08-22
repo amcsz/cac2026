@@ -19,12 +19,15 @@ from .models import (
     FcmDevice,
     GlobalAlert,
     OrganizationMembership,
+    ReportConversation,
+    ReportMessage,
     get_archive_day_for_datetime,
 )
 from .push_notifications import send_global_alert_push
 from .scenarios import SCENARIOS, generate_scenario_reports
 from .serializers import (
     AuthResponseSerializer,
+    CreateReportConversationSerializer,
     CreateOrganizationSerializer,
     EmergencyReportSerializer,
     FcmDeviceSerializer,
@@ -35,6 +38,9 @@ from .serializers import (
     OrganizationSerializer,
     PublishGlobalAlertSerializer,
     RegisterSerializer,
+    ReportConversationSerializer,
+    ReportMessageSerializer,
+    SendReportMessageSerializer,
     SimulateEmergencySerializer,
     UpdateOrganizationMembershipRoleSerializer,
     UserSerializer,
@@ -433,14 +439,134 @@ class SimulateEmergencyScenarioView(APIView):
         )
 
 
+class ReportConversationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        membership = getattr(request.user, "organization_membership", None)
+        if membership is None:
+            return Response(
+                {"detail": "You must belong to an organization to view communications."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        conversations = ReportConversation.objects.filter(
+            organization=membership.organization,
+        ).select_related(
+            "report",
+            "report__reported_by",
+        )
+        if membership.role != OrganizationMembership.ROLE_ADMINISTRATOR:
+            conversations = conversations.filter(report__reported_by=request.user)
+
+        serializer = ReportConversationSerializer(
+            conversations,
+            many=True,
+            context={"request": request},
+        )
+        return Response(serializer.data)
+
+    def post(self, request):
+        membership, response = _admin_membership_or_response(
+            request.user,
+            "Only administrators can respond to reports.",
+        )
+        if response is not None:
+            return response
+
+        serializer = CreateReportConversationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        report = EmergencyReport.objects.filter(
+            id=serializer.validated_data["report_id"],
+            organization=membership.organization,
+        ).select_related("reported_by").first()
+        if report is None:
+            return Response({"detail": "That report was not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        conversation, _ = ReportConversation.objects.get_or_create(
+            report=report,
+            defaults={
+                "organization": membership.organization,
+                "created_by": request.user,
+            },
+        )
+        return Response(
+            ReportConversationSerializer(conversation, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ReportConversationMessagesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, conversation_id):
+        conversation, response = self._get_accessible_conversation(request.user, conversation_id)
+        if response is not None:
+            return response
+
+        messages = conversation.messages.select_related("sender")
+        serializer = ReportMessageSerializer(messages, many=True, context={"request": request})
+        return Response(serializer.data)
+
+    def post(self, request, conversation_id):
+        conversation, response = self._get_accessible_conversation(request.user, conversation_id)
+        if response is not None:
+            return response
+
+        serializer = SendReportMessageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        message = ReportMessage.objects.create(
+            conversation=conversation,
+            sender=request.user,
+            body=serializer.validated_data["body"],
+        )
+        conversation.updated_at = timezone.now()
+        conversation.save(update_fields=["updated_at"])
+
+        return Response(
+            ReportMessageSerializer(message, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def _get_accessible_conversation(self, user, conversation_id):
+        membership = getattr(user, "organization_membership", None)
+        if membership is None:
+            return None, Response(
+                {"detail": "You must belong to an organization to view communications."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        conversation = ReportConversation.objects.filter(
+            id=conversation_id,
+            organization=membership.organization,
+        ).select_related(
+            "report",
+            "report__reported_by",
+        ).first()
+        if conversation is None:
+            return None, Response({"detail": "Conversation not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        is_admin = membership.role == OrganizationMembership.ROLE_ADMINISTRATOR
+        is_reporter = conversation.report.reported_by_id == user.id
+        if not is_admin and not is_reporter:
+            return None, Response(
+                {"detail": "You do not have access to this conversation."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return conversation, None
+
+
 class AlertSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         membership = getattr(request.user, "organization_membership", None)
-        if membership is None or membership.role != OrganizationMembership.ROLE_ADMINISTRATOR:
+        if membership is None:
             return Response(
-                {"detail": "Only administrators can view alert summaries."},
+                {"detail": "You must belong to an organization to view alert summaries."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 

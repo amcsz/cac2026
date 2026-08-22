@@ -37,7 +37,7 @@ class ReportTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
@@ -46,136 +46,420 @@ class ReportTab extends StatelessWidget {
             children: [
               Text(
                 'Report an Incident',
-                style: Theme.of(context).textTheme.headlineSmall,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 34,
+                    ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+
               Text(
-                'Send a quick emergency report to your organization administrators. Include your location first, then add only the details you know.',
-                style: Theme.of(context).textTheme.bodyMedium,
+                'Send a quick emergency report to your organization '
+                'administrators. Include your location first, then add '
+                'only the details you know.',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontSize: 19,
+                      height: 1.5,
+                    ),
               ),
-              const SizedBox(height: 24),
+
+              const SizedBox(height: 28),
+
               if (reportSuccess != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green),
+                  ),
                   child: Text(
                     reportSuccess!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+
               if (reportError != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red),
+                  ),
                   child: Text(
                     reportError!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+
               if (!showReportForm)
                 SizedBox(
                   width: double.infinity,
-                  height: 76,
+                  height: 90,
                   child: FilledButton.icon(
                     onPressed: onStartReport,
-                    icon: const Icon(Icons.report, size: 32),
-                    label: Text(
-                      'Report an Incident',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontWeight: FontWeight.w800,
-                          ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red.shade700,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.report_rounded,
+                      size: 38,
+                    ),
+                    label: const Text(
+                      'REPORT AN INCIDENT',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 )
               else ...[
                 Row(
                   children: [
-                    Expanded(child: Text('Step ${reportStep + 1} of 3')),
-                    TextButton(
+                    Expanded(
+                      child: Text(
+                        'Step ${reportStep + 1} of 3',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    TextButton.icon(
                       onPressed: submittingReport ? null : onCancel,
-                      child: const Text('Cancel'),
+                      icon: const Icon(Icons.close),
+                      label: const Text(
+                        'Cancel',
+                        style: TextStyle(fontSize: 17),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+
+                const SizedBox(height: 20),
+
                 if (reportStep == 0) ...[
-                  const Text('What type of emergency is this?'),
-                  const SizedBox(height: 12),
-                  RadioGroup<String>(
-                    groupValue: reportType,
-                    onChanged: (value) => onReportTypeChanged(value ?? 'fire'),
-                    child: const Column(
-                      children: [
-                        RadioListTile<String>(
-                          title: Text('Fire'),
-                          value: 'fire',
-                        ),
-                        RadioListTile<String>(
-                          title: Text('Medical'),
-                          value: 'medical',
-                        ),
-                        RadioListTile<String>(
-                          title: Text('Intruder'),
-                          value: 'intruder',
-                        ),
-                      ],
+                  const Text(
+                    'What type of emergency is this?',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
+
+                  const SizedBox(height: 20),
+
+                  _EmergencyButton(
+                    title: 'Fire',
+                    subtitle: 'Fire, smoke, or explosion',
+                    icon: Icons.local_fire_department_rounded,
+                    color: Colors.red,
+                    selected: reportType == 'fire',
+                    onTap: () => onReportTypeChanged('fire'),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  _EmergencyButton(
+                    title: 'Medical',
+                    subtitle: 'Injury or medical emergency',
+                    icon: Icons.local_hospital_rounded,
+                    color: Colors.blue,
+                    selected: reportType == 'medical',
+                    onTap: () => onReportTypeChanged('medical'),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  _EmergencyButton(
+                    title: 'Intruder',
+                    subtitle: 'Threat or unauthorized person',
+                    icon: Icons.security_rounded,
+                    color: Colors.black,
+                    selected: reportType == 'intruder',
+                    onTap: () => onReportTypeChanged('intruder'),
+                  ),
                 ] else if (reportStep == 1) ...[
-                  const Text('Where are you right now?'),
-                  const SizedBox(height: 12),
+                  const Text(
+                    'Where are you right now?',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
                   TextField(
                     controller: locationController,
-                    decoration: const InputDecoration(
+                    style: const TextStyle(fontSize: 20),
+                    decoration: InputDecoration(
                       labelText: 'Location',
-                      border: OutlineInputBorder(),
+                      labelStyle: const TextStyle(fontSize: 18),
+                      hintText: 'Example: Building A, Room 204',
+                      hintStyle: const TextStyle(fontSize: 17),
+                      prefixIcon: const Icon(
+                        Icons.location_on_rounded,
+                        size: 30,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 22,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ] else ...[
-                  const Text('Any extra details?'),
-                  const SizedBox(height: 12),
+                  const Text(
+                    'Any extra details?',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
                   TextField(
                     controller: detailsController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
+                    maxLines: 5,
+                    style: const TextStyle(fontSize: 19),
+                    decoration: InputDecoration(
                       labelText: 'Details (optional)',
-                      border: OutlineInputBorder(),
+                      labelStyle: const TextStyle(fontSize: 18),
+                      hintText: switch (reportType) {
+                        'fire' =>
+                          'Describe how people escaped, where you see fire or smoke, what is burning, and any immediate hazards...',
+                        'medical' =>
+                          'Describe how many people are hurt, their current condition, what happened, and any help they need...',
+                        'intruder' =>
+                          'Share where you think the intruder is, whether anyone is hurt, what they look like, and any other identifying details...',
+                        _ =>
+                          'Add anything important you know, including what happened, who may be affected, and any immediate hazards...',
+                      },
+                      hintStyle: const TextStyle(fontSize: 17),
+                      alignLabelWithHint: true,
+                      contentPadding: const EdgeInsets.all(20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
+
+                const SizedBox(height: 30),
+
                 Row(
                   children: [
                     if (reportStep > 0)
-                      OutlinedButton(
-                        onPressed: onBack,
-                        child: const Text('Back'),
+                      SizedBox(
+                        height: 56,
+                        child: OutlinedButton.icon(
+                          onPressed: submittingReport ? null : onBack,
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          label: const Text(
+                            'Back',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                            ),
+                          ),
+                        ),
                       ),
+
                     const Spacer(),
+
                     if (reportStep < 2)
-                      ElevatedButton(
-                        onPressed: onNext,
-                        child: const Text('Next'),
+                      SizedBox(
+                        height: 56,
+                        child: FilledButton.icon(
+                          onPressed: onNext,
+                          iconAlignment: IconAlignment.end,
+                          icon: const Icon(Icons.arrow_forward_rounded),
+                          label: const Text(
+                            'Next',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 28,
+                            ),
+                          ),
+                        ),
                       )
                     else
-                      ElevatedButton(
-                        onPressed: submittingReport ? null : onSubmit,
-                        child: submittingReport
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                      SizedBox(
+                        height: 60,
+                        child: FilledButton.icon(
+                          onPressed:
+                              submittingReport ? null : onSubmit,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.red.shade700,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 28,
+                            ),
+                          ),
+                          icon: submittingReport
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.send_rounded,
+                                  size: 26,
                                 ),
-                              )
-                            : const Text('Submit report'),
+                          label: Text(
+                            submittingReport
+                                ? 'Submitting...'
+                                : 'Submit Report',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
                       ),
                   ],
                 ),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmergencyButton extends StatelessWidget {
+  const _EmergencyButton({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? color : color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 20,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: color,
+              width: selected ? 3 : 2,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Colors.white.withValues(alpha: 0.18)
+                      : color,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  icon,
+                  color: Colors.white,
+                  size: 36,
+                ),
+              ),
+
+              const SizedBox(width: 20),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: selected ? Colors.white : color,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: selected
+                            ? Colors.white.withValues(alpha: 0.9)
+                            : Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              Icon(
+                selected
+                    ? Icons.check_circle_rounded
+                    : Icons.circle_outlined,
+                color: selected ? Colors.white : color,
+                size: 30,
+              ),
             ],
           ),
         ),

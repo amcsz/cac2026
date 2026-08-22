@@ -13,6 +13,8 @@ from .models import (
     GlobalAlert,
     Organization,
     OrganizationMembership,
+    ReportConversation,
+    ReportMessage,
     get_archive_day_for_datetime,
 )
 
@@ -115,6 +117,98 @@ class PublishGlobalAlertSerializer(serializers.Serializer):
 
 class SimulateEmergencySerializer(serializers.Serializer):
     scenario = serializers.ChoiceField(choices=[(key, value["label"]) for key, value in SCENARIOS.items()])
+
+
+class ReportConversationSerializer(serializers.ModelSerializer):
+    report_id = serializers.IntegerField(source="report.id", read_only=True)
+    title = serializers.SerializerMethodField()
+    reported_by_username = serializers.SerializerMethodField()
+    emergency_type = serializers.CharField(source="report.emergency_type", read_only=True)
+    emergency_type_label = serializers.SerializerMethodField()
+    location = serializers.CharField(source="report.location", read_only=True)
+    report_details = serializers.CharField(source="report.details", read_only=True)
+    report_created_at = serializers.DateTimeField(source="report.created_at", read_only=True)
+    last_message = serializers.SerializerMethodField()
+    last_message_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReportConversation
+        fields = [
+            "id",
+            "report_id",
+            "title",
+            "reported_by_username",
+            "emergency_type",
+            "emergency_type_label",
+            "location",
+            "report_details",
+            "report_created_at",
+            "last_message",
+            "last_message_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_title(self, conversation):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        membership = getattr(user, "organization_membership", None)
+        if membership is not None and membership.role == OrganizationMembership.ROLE_ADMINISTRATOR:
+            return self.get_reported_by_username(conversation)
+        return f"{conversation.report.get_emergency_type_display()} report at {conversation.report.location}"
+
+    def get_reported_by_username(self, conversation):
+        reporter = conversation.report.reported_by
+        if reporter is None:
+            return "Unknown reporter"
+        return reporter.username
+
+    def get_emergency_type_label(self, conversation):
+        return conversation.report.get_emergency_type_display()
+
+    def get_last_message(self, conversation):
+        message = conversation.messages.order_by("-created_at").first()
+        return message.body if message is not None else ""
+
+    def get_last_message_at(self, conversation):
+        message = conversation.messages.order_by("-created_at").first()
+        return message.created_at if message is not None else None
+
+
+class CreateReportConversationSerializer(serializers.Serializer):
+    report_id = serializers.IntegerField()
+
+
+class ReportMessageSerializer(serializers.ModelSerializer):
+    sender_id = serializers.IntegerField(source="sender.id", read_only=True)
+    sender_username = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReportMessage
+        fields = ["id", "body", "created_at", "sender_id", "sender_username", "is_mine"]
+        read_only_fields = fields
+
+    def get_sender_username(self, message):
+        if message.sender is None:
+            return "Unknown"
+        return message.sender.username
+
+    def get_is_mine(self, message):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        return user is not None and message.sender_id == user.id
+
+
+class SendReportMessageSerializer(serializers.Serializer):
+    body = serializers.CharField()
+
+    def validate_body(self, value):
+        body = value.strip()
+        if not body:
+            raise serializers.ValidationError("Message is required.")
+        return body
 
 
 class FcmDeviceSerializer(serializers.Serializer):

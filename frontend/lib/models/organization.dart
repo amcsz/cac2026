@@ -211,6 +211,85 @@ class ArchiveEvent {
   }
 }
 
+class ReportConversation {
+  const ReportConversation({
+    required this.id,
+    required this.reportId,
+    required this.title,
+    required this.reportedByUsername,
+    required this.emergencyType,
+    required this.emergencyTypeLabel,
+    required this.location,
+    required this.reportDetails,
+    required this.reportCreatedAt,
+    required this.lastMessage,
+    required this.lastMessageAt,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final int id;
+  final int reportId;
+  final String title;
+  final String reportedByUsername;
+  final String emergencyType;
+  final String emergencyTypeLabel;
+  final String location;
+  final String reportDetails;
+  final String reportCreatedAt;
+  final String lastMessage;
+  final String lastMessageAt;
+  final String createdAt;
+  final String updatedAt;
+
+  factory ReportConversation.fromJson(Map<String, dynamic> json) {
+    return ReportConversation(
+      id: json['id'] as int,
+      reportId: json['report_id'] as int,
+      title: json['title'] as String? ?? '',
+      reportedByUsername: json['reported_by_username'] as String? ?? 'Unknown',
+      emergencyType: json['emergency_type'] as String? ?? '',
+      emergencyTypeLabel: json['emergency_type_label'] as String? ?? '',
+      location: json['location'] as String? ?? '',
+      reportDetails: json['report_details'] as String? ?? '',
+      reportCreatedAt: json['report_created_at'] as String? ?? '',
+      lastMessage: json['last_message'] as String? ?? '',
+      lastMessageAt: json['last_message_at'] as String? ?? '',
+      createdAt: json['created_at'] as String? ?? '',
+      updatedAt: json['updated_at'] as String? ?? '',
+    );
+  }
+}
+
+class ReportChatMessage {
+  const ReportChatMessage({
+    required this.id,
+    required this.body,
+    required this.createdAt,
+    required this.senderId,
+    required this.senderUsername,
+    required this.isMine,
+  });
+
+  final int id;
+  final String body;
+  final String createdAt;
+  final int? senderId;
+  final String senderUsername;
+  final bool isMine;
+
+  factory ReportChatMessage.fromJson(Map<String, dynamic> json) {
+    return ReportChatMessage(
+      id: json['id'] as int,
+      body: json['body'] as String? ?? '',
+      createdAt: json['created_at'] as String? ?? '',
+      senderId: json['sender_id'] as int?,
+      senderUsername: json['sender_username'] as String? ?? 'Unknown',
+      isMine: json['is_mine'] as bool? ?? false,
+    );
+  }
+}
+
 class PaginatedResult<T> {
   const PaginatedResult({
     required this.results,
