@@ -59,6 +59,19 @@ class _NativeNotificationService implements NotificationService {
     const androidSettings = AndroidInitializationSettings('ic_stat_swiftguard');
     const settings = InitializationSettings(android: androidSettings);
     await _plugin.initialize(settings: settings);
+
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await android?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'swiftguard_alerts',
+        'SwiftGuard alerts',
+        description: 'Emergency and global alert notifications.',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+      ),
+    );
     _initialized = true;
   }
 
