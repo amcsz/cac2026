@@ -172,9 +172,11 @@ class ReportMessage(models.Model):
 class GlobalAlert(models.Model):
     INCIDENT_FIRE = "fire"
     INCIDENT_INTRUDER = "intruder"
+    INCIDENT_MEDICAL = "medical"
     INCIDENT_CHOICES = [
         (INCIDENT_FIRE, "Fire"),
         (INCIDENT_INTRUDER, "Intruder"),
+        (INCIDENT_MEDICAL, "Medical"),
     ]
 
     organization = models.ForeignKey(

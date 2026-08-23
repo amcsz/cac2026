@@ -29,8 +29,12 @@ class _GlobalAlertBannerState extends State<GlobalAlertBanner> {
   Widget build(BuildContext context) {
     final alert = widget.alert;
     final intruderAlert = alert.incidentType == 'intruder';
-    final backgroundColor =
-        intruderAlert ? Colors.black : const Color(0xffc62828);
+    final medicalAlert = alert.incidentType == 'medical';
+    final backgroundColor = intruderAlert
+        ? Colors.black
+        : medicalAlert
+            ? const Color(0xff1565c0)
+            : const Color(0xffc62828);
     const foregroundColor = Colors.white;
 
     return Material(

@@ -518,8 +518,11 @@ class _LoggedInPageState extends State<LoggedInPage> {
       final alert = await ApiClient(token: widget.token).publishGlobalAlert(
         headline: headline,
         message: message,
-        incidentType:
-            _alertSummary?.incidentType == 'intruder' ? 'intruder' : 'fire',
+        incidentType: switch (_alertSummary?.incidentType) {
+          'intruder' => 'intruder',
+          'medical' => 'medical',
+          _ => 'fire',
+        },
         adminsOnly: _publishAdminsOnly,
       );
       if (mounted) {
@@ -1273,8 +1276,12 @@ class _FullScreenGlobalAlertDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final intruderAlert = alert.incidentType == 'intruder';
-    final backgroundColor =
-        intruderAlert ? Colors.black : const Color(0xffc62828);
+    final medicalAlert = alert.incidentType == 'medical';
+    final backgroundColor = intruderAlert
+        ? Colors.black
+        : medicalAlert
+            ? const Color(0xff1565c0)
+            : const Color(0xffc62828);
     const foregroundColor = Colors.white;
 
     return Dialog.fullscreen(
