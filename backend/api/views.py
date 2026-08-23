@@ -24,7 +24,11 @@ from .models import (
     ReportMessage,
     get_archive_day_for_datetime,
 )
-from .push_notifications import send_global_alert_push
+from .push_notifications import (
+    send_comms_message_push,
+    send_global_alert_push,
+    send_new_report_push,
+)
 from .scenarios import SCENARIOS, generate_scenario_reports
 from .serializers import (
     AuthResponseSerializer,
@@ -305,6 +309,7 @@ class EmergencyReportView(APIView):
         serializer = EmergencyReportSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         report = serializer.save()
+        send_new_report_push(report)
         _refresh_summary_after_report(report.organization)
         return Response(EmergencyReportSerializer(report).data, status=status.HTTP_201_CREATED)
 
@@ -428,6 +433,8 @@ class SimulateEmergencyScenarioView(APIView):
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+        for report in reports:
+            send_new_report_push(report)
         _refresh_summary_after_report(membership.organization)
 
         return Response(
@@ -525,6 +532,7 @@ class ReportConversationMessagesView(APIView):
         )
         conversation.updated_at = timezone.now()
         conversation.save(update_fields=["updated_at"])
+        send_comms_message_push(message)
 
         return Response(
             ReportMessageSerializer(message, context={"request": request}).data,

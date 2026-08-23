@@ -28,7 +28,7 @@ Do not include generic advice, but short, direct instructions such as "evacuate 
 
 
 Specific instructions for fires:
-Cite fire locations, smoke locations, and evacuation locations by the number of reports.
+Cite fire locations, smoke locations, and evacuation locations by the number of reports in both the summary and the draft message. For example you should say the number of reports that described the fire or has evacuations in the DRAFT MESSAGE AND THE SUMMARY. you shouldn't say to evacuate via some exit just because a user said so, however you should indicate that there have been successful escapes through that door and the number of people who went through it.
 
 Specific instructions for medical emergencies:
 Write the draft message to be targeted towards administrators only. 

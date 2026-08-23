@@ -20,13 +20,83 @@ def send_global_alert_push(alert):
         devices = devices.filter(
             user__organization_membership__role=OrganizationMembership.ROLE_ADMINISTRATOR,
         )
-    tokens = list(devices.values_list("token", flat=True))
+    _send_push(
+        devices,
+        title=alert.headline,
+        body=_plain_text(alert.message),
+        data={
+            "type": "global_alert",
+            "alert_id": str(alert.id),
+            "organization_id": str(alert.organization_id),
+        },
+        log_context=(
+            "global alert",
+            f"alert_id={alert.id} organization_id={alert.organization_id}",
+        ),
+    )
+
+
+def send_new_report_push(report):
+    """Notify organization administrators about a newly submitted report."""
+    devices = FcmDevice.objects.filter(
+        organization=report.organization,
+        is_active=True,
+        user__organization_membership__role=OrganizationMembership.ROLE_ADMINISTRATOR,
+    ).exclude(user_id=report.reported_by_id)
+    _send_push(
+        devices,
+        title=f"New {report.emergency_type} report",
+        body=f"{report.reported_by.username}: {_plain_text(report.details)[:180]}",
+        data={
+            "type": "new_report",
+            "report_id": str(report.id),
+            "organization_id": str(report.organization_id),
+        },
+        log_context=(
+            "new report",
+            f"report_id={report.id} organization_id={report.organization_id}",
+        ),
+    )
+
+
+def send_comms_message_push(message):
+    """Notify the report author and all organization administrators except sender."""
+    conversation = message.conversation
+    recipient_ids = set(
+        OrganizationMembership.objects.filter(
+            organization=conversation.organization,
+            role=OrganizationMembership.ROLE_ADMINISTRATOR,
+        ).values_list("user_id", flat=True)
+    )
+    recipient_ids.add(conversation.report.reported_by_id)
+    recipient_ids.discard(message.sender_id)
+
+    devices = FcmDevice.objects.filter(
+        organization=conversation.organization,
+        is_active=True,
+        user_id__in=recipient_ids,
+    )
+    _send_push(
+        devices,
+        title=f"Message about {conversation.report.reported_by.username}",
+        body=f"{message.sender.username}: {_plain_text(message.body)[:180]}",
+        data={
+            "type": "comms_message",
+            "conversation_id": str(conversation.id),
+            "report_id": str(conversation.report_id),
+            "organization_id": str(conversation.organization_id),
+        },
+        log_context=(
+            "Comms message",
+            f"message_id={message.id} conversation_id={conversation.id}",
+        ),
+    )
+
+
+def _send_push(devices, *, title, body, data, log_context):
+    tokens = list(devices.values_list("token", flat=True).distinct())
     if not tokens:
-        logger.warning(
-            "No active FCM devices for global alert id=%s organization_id=%s",
-            alert.id,
-            alert.organization_id,
-        )
+        logger.info("No active FCM devices for %s %s", log_context[0], log_context[1])
         return
 
     try:
@@ -35,37 +105,32 @@ def send_global_alert_push(alert):
         logger.exception("Firebase Admin is not configured; push not sent.")
         return
 
-    message = messaging.MulticastMessage(
-        tokens=tokens,
-        notification=messaging.Notification(
-            title=alert.headline,
-            body=_plain_text(alert.message),
-        ),
-        data={
-            "type": "global_alert",
-            "alert_id": str(alert.id),
-            "organization_id": str(alert.organization_id),
-        },
-        android=messaging.AndroidConfig(
-            priority="high",
-            notification=messaging.AndroidNotification(
-                channel_id="swiftguard_alerts",
+    # FCM multicast requests accept at most 500 registration tokens.
+    for start in range(0, len(tokens), 500):
+        batch = tokens[start:start + 500]
+        message = messaging.MulticastMessage(
+            tokens=batch,
+            notification=messaging.Notification(title=title, body=body),
+            data=data,
+            android=messaging.AndroidConfig(
                 priority="high",
+                notification=messaging.AndroidNotification(
+                    channel_id="swiftguard_alerts",
+                    priority="high",
+                ),
             ),
-        ),
-    )
-
-    response = messaging.send_each_for_multicast(message)
-    logger.warning(
-        "Sent global alert push alert_id=%s organization_id=%s success=%s failure=%s",
-        alert.id,
-        alert.organization_id,
-        response.success_count,
-        response.failure_count,
-    )
-    if response.failure_count:
-        _log_failed_tokens(tokens, response.responses)
-        _deactivate_failed_tokens(tokens, response.responses)
+        )
+        response = messaging.send_each_for_multicast(message)
+        logger.warning(
+            "Sent %s %s success=%s failure=%s",
+            log_context[0],
+            log_context[1],
+            response.success_count,
+            response.failure_count,
+        )
+        if response.failure_count:
+            _log_failed_tokens(batch, response.responses)
+            _deactivate_failed_tokens(batch, response.responses)
 
 
 def _ensure_firebase_app():

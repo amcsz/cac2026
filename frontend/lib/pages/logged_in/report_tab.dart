@@ -190,8 +190,17 @@ class ReportTab extends StatelessWidget {
                     },
                   ),
                 ] else ...[
-                  const Text(
-                    'Any extra details?',
+                  Text(
+                    switch (reportType) {
+                      'fire' =>
+                        'Tell us briefly what happened, where it happened, and your evacuation route if you reached safety.',
+                      'medical' =>
+                        'Describe how many people are hurt, their current condition, what happened, and any help they need...',
+                      'intruder' =>
+                        'Share where you think the intruder is, whether anyone is hurt, what they look like, and any other identifying details...',
+                      _ =>
+                        'Add anything important you know, including what happened, who may be affected, and any immediate hazards...',
+                    },
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
@@ -205,16 +214,7 @@ class ReportTab extends StatelessWidget {
                     decoration: InputDecoration(
                       labelText: 'Details (optional)',
                       labelStyle: const TextStyle(fontSize: 18),
-                      hintText: switch (reportType) {
-                        'fire' =>
-                          'Tell us briefly what happened, where it happened, and your evacuation route if you reached safety.',
-                        'medical' =>
-                          'Describe how many people are hurt, their current condition, what happened, and any help they need...',
-                        'intruder' =>
-                          'Share where you think the intruder is, whether anyone is hurt, what they look like, and any other identifying details...',
-                        _ =>
-                          'Add anything important you know, including what happened, who may be affected, and any immediate hazards...',
-                      },
+                      hintText: "Write here",
                       hintStyle: const TextStyle(fontSize: 17),
                       alignLabelWithHint: true,
                       contentPadding: const EdgeInsets.all(20),
