@@ -38,7 +38,7 @@ class _NativeNotificationService implements NotificationService {
         body: _plainText(body),
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
-            'swiftguard_alerts_v2',
+            'swiftguard_alerts_v3',
             'SwiftGuard alerts',
             channelDescription: 'Emergency and global alert notifications.',
             importance: Importance.max,
@@ -64,7 +64,7 @@ class _NativeNotificationService implements NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
     await android?.createNotificationChannel(
       const AndroidNotificationChannel(
-        'swiftguard_alerts_v2',
+        'swiftguard_alerts_v3',
         'SwiftGuard alerts',
         description: 'Emergency and global alert notifications.',
         importance: Importance.max,

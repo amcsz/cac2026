@@ -39,14 +39,33 @@ class FcmService {
       return;
     }
 
+    // Register this before token registration so a slow or failed API request
+    // cannot prevent notifications while the app is in the foreground.
+    try {
+      _foregroundMessageSubscription?.cancel();
+      _foregroundMessageSubscription =
+          FirebaseMessaging.onMessage.listen(_showForegroundNotification);
+    } catch (error) {
+      debugPrint('Could not register foreground FCM listener: $error');
+    }
+
     try {
       await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
-      await notificationService.requestPermission();
+    } catch (error) {
+      debugPrint('Could not request FCM permission: $error');
+    }
 
+    try {
+      await notificationService.requestPermission();
+    } catch (error) {
+      debugPrint('Could not initialize local notifications: $error');
+    }
+
+    try {
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
         await _registerToken(token);
@@ -55,11 +74,9 @@ class FcmService {
       _tokenRefreshSubscription?.cancel();
       _tokenRefreshSubscription =
           FirebaseMessaging.instance.onTokenRefresh.listen(_registerToken);
-
-      _foregroundMessageSubscription?.cancel();
-      _foregroundMessageSubscription =
-          FirebaseMessaging.onMessage.listen(_showForegroundNotification);
-    } catch (_) {}
+    } catch (error) {
+      debugPrint('Could not register FCM device: $error');
+    }
   }
 
   Future<void> stop() async {
@@ -100,9 +117,13 @@ class FcmService {
       return;
     }
 
-    await notificationService.show(
-      title: title.toString(),
-      body: body.toString(),
-    );
+    try {
+      await notificationService.show(
+        title: title.toString(),
+        body: body.toString(),
+      );
+    } catch (error) {
+      debugPrint('Could not show foreground notification: $error');
+    }
   }
 }

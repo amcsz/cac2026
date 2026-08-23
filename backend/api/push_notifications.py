@@ -115,7 +115,7 @@ def _send_push(devices, *, title, body, data, log_context):
             android=messaging.AndroidConfig(
                 priority="high",
                 notification=messaging.AndroidNotification(
-                    channel_id="swiftguard_alerts_v2",
+                    channel_id="swiftguard_alerts_v3",
                     priority="high",
                 ),
             ),
