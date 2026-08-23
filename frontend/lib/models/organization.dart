@@ -56,8 +56,6 @@ class OrganizationMembership {
     switch (role) {
       case 'administrator':
         return 'Administrator';
-      case 'teacher':
-        return 'Teacher';
       default:
         return 'Member';
     }
@@ -68,7 +66,6 @@ class EmergencyReport {
   const EmergencyReport({
     required this.id,
     required this.emergencyType,
-    required this.location,
     required this.details,
     required this.createdAt,
     required this.reportedByUsername,
@@ -77,7 +74,6 @@ class EmergencyReport {
 
   final int id;
   final String emergencyType;
-  final String location;
   final String details;
   final String createdAt;
   final String reportedByUsername;
@@ -87,7 +83,6 @@ class EmergencyReport {
     return EmergencyReport(
       id: json['id'] as int,
       emergencyType: json['emergency_type'] as String,
-      location: json['location'] as String,
       details: json['details'] as String? ?? '',
       createdAt: json['created_at'] as String? ?? '',
       reportedByUsername: json['reported_by_username'] as String? ?? 'Unknown',
@@ -112,6 +107,9 @@ class AlertSummary {
     required this.headline,
     required this.summary,
     required this.draftMessage,
+    required this.incidentType,
+    required this.verified,
+    required this.needsVerification,
     required this.reportCount,
     required this.generatedAt,
     required this.windowHours,
@@ -120,6 +118,9 @@ class AlertSummary {
   final String headline;
   final String summary;
   final String draftMessage;
+  final String incidentType;
+  final bool verified;
+  final bool needsVerification;
   final int reportCount;
   final String generatedAt;
   final int windowHours;
@@ -129,6 +130,9 @@ class AlertSummary {
       headline: json['headline'] as String? ?? '',
       summary: json['summary'] as String? ?? '',
       draftMessage: json['draft_message'] as String? ?? '',
+      incidentType: json['incident_type'] as String? ?? 'fire',
+      verified: json['verified'] as bool? ?? false,
+      needsVerification: json['needs_verification'] as bool? ?? false,
       reportCount: json['report_count'] as int? ?? 0,
       generatedAt: json['generated_at'] as String? ?? '',
       windowHours: json['window_hours'] as int? ?? 24,
@@ -141,6 +145,8 @@ class GlobalAlert {
     required this.id,
     required this.headline,
     required this.message,
+    required this.incidentType,
+    required this.adminsOnly,
     required this.createdAt,
     required this.createdByUsername,
   });
@@ -148,6 +154,8 @@ class GlobalAlert {
   final int id;
   final String headline;
   final String message;
+  final String incidentType;
+  final bool adminsOnly;
   final String createdAt;
   final String createdByUsername;
 
@@ -156,6 +164,8 @@ class GlobalAlert {
       id: json['id'] as int,
       headline: json['headline'] as String? ?? '',
       message: json['message'] as String? ?? '',
+      incidentType: json['incident_type'] as String? ?? 'fire',
+      adminsOnly: json['admins_only'] as bool? ?? false,
       createdAt: json['created_at'] as String? ?? '',
       createdByUsername: json['created_by_username'] as String? ?? '',
     );
@@ -219,7 +229,6 @@ class ReportConversation {
     required this.reportedByUsername,
     required this.emergencyType,
     required this.emergencyTypeLabel,
-    required this.location,
     required this.reportDetails,
     required this.reportCreatedAt,
     required this.lastMessage,
@@ -234,7 +243,6 @@ class ReportConversation {
   final String reportedByUsername;
   final String emergencyType;
   final String emergencyTypeLabel;
-  final String location;
   final String reportDetails;
   final String reportCreatedAt;
   final String lastMessage;
@@ -250,7 +258,6 @@ class ReportConversation {
       reportedByUsername: json['reported_by_username'] as String? ?? 'Unknown',
       emergencyType: json['emergency_type'] as String? ?? '',
       emergencyTypeLabel: json['emergency_type_label'] as String? ?? '',
-      location: json['location'] as String? ?? '',
       reportDetails: json['report_details'] as String? ?? '',
       reportCreatedAt: json['report_created_at'] as String? ?? '',
       lastMessage: json['last_message'] as String? ?? '',

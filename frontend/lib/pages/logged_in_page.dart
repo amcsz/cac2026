@@ -39,6 +39,7 @@ class LoggedInPage extends StatefulWidget {
 class _LoggedInPageState extends State<LoggedInPage> {
   static const Duration _globalAlertPollInterval = Duration(seconds: 10);
   static const Duration _alertSummaryPollInterval = Duration(seconds: 10);
+  static const Duration _communicationsPollInterval = Duration(seconds: 3);
 
   bool _loadingMembers = false;
   String? _memberError;
@@ -65,6 +66,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _archiveEventsHasPrevious = false;
 
   bool _loadingAlertSummary = false;
+  bool _verifyingIncident = false;
   String? _alertSummaryError;
   AlertSummary? _alertSummary;
   String? _lastAlertSummaryGeneratedAt;
@@ -72,6 +74,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _urgentSummaryNoticeVisible = false;
 
   bool _publishingGlobalAlert = false;
+  bool _publishAdminsOnly = false;
   bool _clearingGlobalAlert = false;
   GlobalAlert? _globalAlert;
   int? _lastGlobalAlertId;
@@ -80,6 +83,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
   final Set<int> _dismissedFullScreenGlobalAlertIds = {};
   Timer? _globalAlertPoller;
   Timer? _alertSummaryPoller;
+  Timer? _communicationsPoller;
 
   bool _loadingConversations = false;
   String? _conversationsError;
@@ -90,6 +94,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
   List<ReportChatMessage> _messages = [];
   bool _sendingMessage = false;
   int? _respondingReportId;
+  bool _pollingCommunications = false;
 
   int _selectedIndex = 0;
   bool _showReportForm = false;
@@ -106,7 +111,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
   final TextEditingController _broadcastMessageController =
       TextEditingController();
   final TextEditingController _chatMessageController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
   final TextEditingController _detailsController = TextEditingController();
   final NotificationService _notificationService = createNotificationService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -136,10 +140,10 @@ class _LoggedInPageState extends State<LoggedInPage> {
   void dispose() {
     _globalAlertPoller?.cancel();
     _alertSummaryPoller?.cancel();
+    _communicationsPoller?.cancel();
     _broadcastHeadlineController.dispose();
     _broadcastMessageController.dispose();
     _chatMessageController.dispose();
-    _locationController.dispose();
     _detailsController.dispose();
     super.dispose();
   }
@@ -164,6 +168,36 @@ class _LoggedInPageState extends State<LoggedInPage> {
       _alertSummaryPollInterval,
       (_) => _loadAlertSummary(showLoading: false),
     );
+  }
+
+  void _startCommunicationsPolling() {
+    _communicationsPoller?.cancel();
+    _communicationsPoller = Timer.periodic(
+      _communicationsPollInterval,
+      (_) => _pollCommunications(),
+    );
+  }
+
+  void _stopCommunicationsPolling() {
+    _communicationsPoller?.cancel();
+    _communicationsPoller = null;
+  }
+
+  Future<void> _pollCommunications() async {
+    if (_selectedIndex != 2 || _pollingCommunications) {
+      return;
+    }
+
+    _pollingCommunications = true;
+    try {
+      await _loadConversations(showLoading: false);
+      final conversationId = _selectedConversationId;
+      if (conversationId != null) {
+        await _loadConversationMessages(conversationId, showLoading: false);
+      }
+    } finally {
+      _pollingCommunications = false;
+    }
   }
 
   Future<void> _loadMembers() async {
@@ -349,6 +383,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
             _broadcastHeadlineController.text = summary.headline;
             _broadcastMessageController.text = summary.draftMessage;
           }
+          _publishAdminsOnly = summary.incidentType == 'medical';
         });
       }
     } on ApiException catch (error) {
@@ -373,6 +408,42 @@ class _LoggedInPageState extends State<LoggedInPage> {
 
     final preferences = await SharedPreferences.getInstance();
     return preferences.getString(_acknowledgedSummaryKey);
+  }
+
+  Future<void> _verifyIncident() async {
+    if (!_isAdmin || _verifyingIncident) {
+      return;
+    }
+
+    setState(() {
+      _verifyingIncident = true;
+      _alertSummaryError = null;
+    });
+
+    try {
+      final summary = await ApiClient(token: widget.token).verifyAlertSummary();
+      if (mounted) {
+        setState(() {
+          _alertSummary = summary;
+          _lastAlertSummaryGeneratedAt = summary.generatedAt;
+          _broadcastHeadlineController.text = summary.headline;
+          _broadcastMessageController.text = summary.draftMessage;
+          _publishAdminsOnly = summary.incidentType == 'medical';
+        });
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _alertSummaryError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _alertSummaryError = 'Could not verify incident.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _verifyingIncident = false);
+      }
+    }
   }
 
   Future<void> _acknowledgeUrgentSummaryNotice() async {
@@ -447,6 +518,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
       final alert = await ApiClient(token: widget.token).publishGlobalAlert(
         headline: headline,
         message: message,
+        incidentType:
+            _alertSummary?.incidentType == 'intruder' ? 'intruder' : 'fire',
+        adminsOnly: _publishAdminsOnly,
       );
       if (mounted) {
         setState(() {
@@ -556,29 +630,34 @@ class _LoggedInPageState extends State<LoggedInPage> {
     }
   }
 
-  Future<void> _loadConversationMessages(int conversationId) async {
-    setState(() {
-      _selectedConversationId = conversationId;
-      _loadingMessages = true;
-      _messagesError = null;
-    });
+  Future<void> _loadConversationMessages(
+    int conversationId, {
+    bool showLoading = true,
+  }) async {
+    if (showLoading) {
+      setState(() {
+        _selectedConversationId = conversationId;
+        _loadingMessages = true;
+        _messagesError = null;
+      });
+    }
 
     try {
       final messages = await ApiClient(token: widget.token)
           .fetchConversationMessages(conversationId: conversationId);
-      if (mounted) {
+      if (mounted && _selectedConversationId == conversationId) {
         setState(() => _messages = messages);
       }
     } on ApiException catch (error) {
-      if (mounted) {
+      if (mounted && showLoading) {
         setState(() => _messagesError = error.message);
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted && showLoading) {
         setState(() => _messagesError = 'Could not load messages.');
       }
     } finally {
-      if (mounted) {
+      if (mounted && showLoading) {
         setState(() => _loadingMessages = false);
       }
     }
@@ -778,7 +857,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
     try {
       await ApiClient(token: widget.token).submitEmergencyReport(
         emergencyType: _reportType,
-        location: _locationController.text.trim(),
         details: _detailsController.text.trim(),
       );
 
@@ -787,7 +865,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
           _showReportForm = false;
           _reportStep = 0;
           _reportType = 'fire';
-          _locationController.clear();
           _detailsController.clear();
           _reportSuccess = 'Emergency report submitted.';
         });
@@ -825,7 +902,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
       _showReportForm = false;
       _reportStep = 0;
       _reportType = 'fire';
-      _locationController.clear();
       _detailsController.clear();
       _reportError = null;
     });
@@ -840,11 +916,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
   }
 
   void _nextReportStep() {
-    if (_reportStep == 1 && _locationController.text.trim().isEmpty) {
-      setState(() => _reportError = 'Location is required.');
-      return;
-    }
-
     setState(() {
       _reportStep += 1;
       _reportError = null;
@@ -863,6 +934,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
     }
     if (index == 2) {
       _loadConversations();
+      _startCommunicationsPolling();
+    } else {
+      _stopCommunicationsPolling();
     }
     if (index == 3 && _isAdmin) {
       _loadArchiveDays(page: _archiveDaysPage);
@@ -929,7 +1003,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   submittingReport: _submittingReport,
                   reportError: _reportError,
                   reportSuccess: _reportSuccess,
-                  locationController: _locationController,
                   detailsController: _detailsController,
                   onStartReport: _startReport,
                   onReportTypeChanged: (value) {
@@ -946,13 +1019,19 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   loadingAlertSummary: _loadingAlertSummary,
                   alertSummaryError: _alertSummaryError,
                   alertSummary: _alertSummary,
+                  verifyingIncident: _verifyingIncident,
                   broadcastHeadlineController: _broadcastHeadlineController,
                   broadcastMessageController: _broadcastMessageController,
                   publishingGlobalAlert: _publishingGlobalAlert,
+                  publishAdminsOnly: _publishAdminsOnly,
                   clearingGlobalAlert: _clearingGlobalAlert,
                   todayReportCount: _reports.length,
                   onOpenReportsSidebar: _openTodayReportsSidebar,
+                  onVerifyIncident: _verifyIncident,
                   onPublishGlobalAlert: _publishGlobalAlert,
+                  onPublishAdminsOnlyChanged: (value) {
+                    setState(() => _publishAdminsOnly = value);
+                  },
                   onClearGlobalAlert: _clearGlobalAlert,
                 ),
                 CommunicationTab(
@@ -967,6 +1046,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   sendingMessage: _sendingMessage,
                   messageController: _chatMessageController,
                   onRefreshConversations: _loadConversations,
+                  onRefreshMessages: (conversationId) {
+                    _loadConversationMessages(conversationId);
+                  },
                   onSelectConversation: _openConversation,
                   onBackToConversations: _backToConversations,
                   onSendMessage: _sendConversationMessage,
@@ -1140,7 +1222,7 @@ class _UrgentSummaryNotice extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Urgent Summary Updated',
+                      'Attention',
                       style: textTheme.titleLarge?.copyWith(
                         color: colorScheme.onErrorContainer,
                         fontWeight: FontWeight.w800,
@@ -1148,7 +1230,7 @@ class _UrgentSummaryNotice extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'New emergency information needs administrator attention.',
+                      'New emergency information available.',
                       style: textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onErrorContainer,
                         fontWeight: FontWeight.w600,
@@ -1190,10 +1272,13 @@ class _FullScreenGlobalAlertDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final intruderAlert = alert.incidentType == 'intruder';
+    final backgroundColor =
+        intruderAlert ? Colors.black : const Color(0xffc62828);
+    const foregroundColor = Colors.white;
 
     return Dialog.fullscreen(
-      backgroundColor: colorScheme.errorContainer,
+      backgroundColor: backgroundColor,
       child: SafeArea(
         child: Column(
           children: [
@@ -1202,9 +1287,9 @@ class _FullScreenGlobalAlertDialog extends StatelessWidget {
               child: IconButton(
                 tooltip: 'Dismiss global alert',
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(
+                icon: const Icon(
                   Icons.close,
-                  color: colorScheme.onErrorContainer,
+                  color: foregroundColor,
                 ),
               ),
             ),
@@ -1217,9 +1302,9 @@ class _FullScreenGlobalAlertDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.campaign,
-                          color: colorScheme.onErrorContainer,
+                          color: foregroundColor,
                           size: 54,
                         ),
                         const SizedBox(height: 18),
@@ -1229,15 +1314,15 @@ class _FullScreenGlobalAlertDialog extends StatelessWidget {
                               .textTheme
                               .displayMedium
                               ?.copyWith(
-                                color: colorScheme.onErrorContainer,
+                                color: foregroundColor,
                                 fontWeight: FontWeight.w900,
                               ),
                         ),
                         const SizedBox(height: 18),
                         MarkdownText(
                           alert.message,
-                          style: TextStyle(
-                            color: colorScheme.onErrorContainer,
+                          style: const TextStyle(
+                            color: foregroundColor,
                             fontSize: 20,
                             height: 1.35,
                           ),
@@ -1245,12 +1330,13 @@ class _FullScreenGlobalAlertDialog extends StatelessWidget {
                         const SizedBox(height: 20),
                         Text(
                           'Announced ${formatTimestamp(alert.createdAt)}',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onErrorContainer
-                                        .withValues(alpha: 0.82),
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                color: foregroundColor.withValues(alpha: 0.82),
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
                         const SizedBox(height: 28),
                         SizedBox(
@@ -1258,7 +1344,7 @@ class _FullScreenGlobalAlertDialog extends StatelessWidget {
                           child: FilledButton.icon(
                             onPressed: () => Navigator.pop(context),
                             icon: const Icon(Icons.check),
-                            label: const Text('I understand'),
+                            label: const Text('Acknowledge'),
                           ),
                         ),
                       ],

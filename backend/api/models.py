@@ -22,12 +22,10 @@ class Organization(models.Model):
 
 class OrganizationMembership(models.Model):
     ROLE_MEMBER = "member"
-    ROLE_TEACHER = "teacher"
     ROLE_ADMINISTRATOR = "administrator"
 
     ROLE_CHOICES = [
         (ROLE_MEMBER, "Member"),
-        (ROLE_TEACHER, "Teacher"),
         (ROLE_ADMINISTRATOR, "Administrator"),
     ]
 
@@ -103,7 +101,6 @@ class EmergencyReport(models.Model):
         related_name="emergency_reports",
     )
     emergency_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-    location = models.CharField(max_length=255)
     details = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     archive_day = models.ForeignKey(
@@ -118,7 +115,7 @@ class EmergencyReport(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.get_emergency_type_display()} reported in {self.location}"
+        return f"{self.get_emergency_type_display()} emergency report"
 
 
 class ReportConversation(models.Model):
@@ -173,6 +170,13 @@ class ReportMessage(models.Model):
 
 
 class GlobalAlert(models.Model):
+    INCIDENT_FIRE = "fire"
+    INCIDENT_INTRUDER = "intruder"
+    INCIDENT_CHOICES = [
+        (INCIDENT_FIRE, "Fire"),
+        (INCIDENT_INTRUDER, "Intruder"),
+    ]
+
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
@@ -187,6 +191,12 @@ class GlobalAlert(models.Model):
     )
     headline = models.CharField(max_length=120)
     message = models.TextField()
+    incident_type = models.CharField(
+        max_length=20,
+        choices=INCIDENT_CHOICES,
+        default=INCIDENT_FIRE,
+    )
+    admins_only = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     archive_day = models.ForeignKey(
         ArchiveDay,
@@ -205,6 +215,11 @@ class GlobalAlert(models.Model):
 
 
 class DailyAlertSummary(models.Model):
+    INCIDENT_MEDICAL = "medical"
+    INCIDENT_CHOICES = [
+        *GlobalAlert.INCIDENT_CHOICES,
+        (INCIDENT_MEDICAL, "Medical"),
+    ]
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
@@ -214,6 +229,13 @@ class DailyAlertSummary(models.Model):
     headline = models.CharField(max_length=120)
     summary = models.TextField()
     draft_message = models.TextField()
+    incident_type = models.CharField(
+        max_length=20,
+        choices=INCIDENT_CHOICES,
+        default=GlobalAlert.INCIDENT_FIRE,
+    )
+    verified = models.BooleanField(default=False)
+    needs_verification = models.BooleanField(default=False)
     report_count = models.PositiveIntegerField(default=0)
     generated_at = models.DateTimeField(default=timezone.now)
     ai_unavailable = models.BooleanField(default=False)

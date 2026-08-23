@@ -298,7 +298,7 @@ class _EventList extends StatelessWidget {
             leading: const Icon(Icons.warning_amber_rounded),
             title: Text(report.emergencyTypeLabel),
             subtitle: Text(
-              'Report sent ${formatTimestamp(report.createdAt)} by ${report.reportedByUsername}\n${report.location}\n${report.details.isEmpty ? 'No additional details provided.' : report.details}',
+              'Report sent ${formatTimestamp(report.createdAt)} by ${report.reportedByUsername}\n${report.details.isEmpty ? 'No additional details provided.' : report.details}',
             ),
           );
         }

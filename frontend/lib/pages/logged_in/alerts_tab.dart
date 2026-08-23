@@ -11,13 +11,17 @@ class AlertsTab extends StatelessWidget {
     required this.loadingAlertSummary,
     required this.alertSummaryError,
     required this.alertSummary,
+    required this.verifyingIncident,
     required this.broadcastHeadlineController,
     required this.broadcastMessageController,
     required this.publishingGlobalAlert,
+    required this.publishAdminsOnly,
     required this.clearingGlobalAlert,
     required this.todayReportCount,
     required this.onOpenReportsSidebar,
+    required this.onVerifyIncident,
     required this.onPublishGlobalAlert,
+    required this.onPublishAdminsOnlyChanged,
     required this.onClearGlobalAlert,
     super.key,
   });
@@ -27,13 +31,17 @@ class AlertsTab extends StatelessWidget {
   final bool loadingAlertSummary;
   final String? alertSummaryError;
   final AlertSummary? alertSummary;
+  final bool verifyingIncident;
   final TextEditingController broadcastHeadlineController;
   final TextEditingController broadcastMessageController;
   final bool publishingGlobalAlert;
+  final bool publishAdminsOnly;
   final bool clearingGlobalAlert;
   final int todayReportCount;
   final VoidCallback onOpenReportsSidebar;
+  final VoidCallback onVerifyIncident;
   final VoidCallback onPublishGlobalAlert;
+  final ValueChanged<bool> onPublishAdminsOnlyChanged;
   final VoidCallback onClearGlobalAlert;
 
   @override
@@ -62,8 +70,10 @@ class AlertsTab extends StatelessWidget {
                 loadingAlertSummary: loadingAlertSummary,
                 alertSummaryError: alertSummaryError,
                 alertSummary: alertSummary,
+                verifyingIncident: verifyingIncident,
                 todayReportCount: todayReportCount,
                 onOpenReportsSidebar: onOpenReportsSidebar,
+                onVerifyIncident: onVerifyIncident,
               ),
               if (isAdmin) ...[
                 const SizedBox(height: 24),
@@ -71,7 +81,9 @@ class AlertsTab extends StatelessWidget {
                   broadcastHeadlineController: broadcastHeadlineController,
                   broadcastMessageController: broadcastMessageController,
                   publishingGlobalAlert: publishingGlobalAlert,
+                  publishAdminsOnly: publishAdminsOnly,
                   onPublishGlobalAlert: onPublishGlobalAlert,
+                  onPublishAdminsOnlyChanged: onPublishAdminsOnlyChanged,
                 ),
               ],
             ],
@@ -94,7 +106,7 @@ class _ClearGlobalMessageButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.centerRight,
+      alignment: Alignment.centerLeft,
       child: OutlinedButton.icon(
         onPressed: clearingGlobalAlert ? null : onClearGlobalAlert,
         icon: clearingGlobalAlert
@@ -115,16 +127,20 @@ class _EmergencySummarySection extends StatelessWidget {
     required this.loadingAlertSummary,
     required this.alertSummaryError,
     required this.alertSummary,
+    required this.verifyingIncident,
     required this.todayReportCount,
     required this.onOpenReportsSidebar,
+    required this.onVerifyIncident,
   });
 
   final bool isAdmin;
   final bool loadingAlertSummary;
   final String? alertSummaryError;
   final AlertSummary? alertSummary;
+  final bool verifyingIncident;
   final int todayReportCount;
   final VoidCallback onOpenReportsSidebar;
+  final VoidCallback onVerifyIncident;
 
   @override
   Widget build(BuildContext context) {
@@ -156,15 +172,30 @@ class _EmergencySummarySection extends StatelessWidget {
           MarkdownText(alertSummary!.summary),
           const SizedBox(height: 12),
           Text(
-            'Based on ${alertSummary!.reportCount} reports from today.',
+            'Based on ${alertSummary!.reportCount} report(s) from today.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
+          if (isAdmin && alertSummary!.needsVerification) ...[
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: verifyingIncident ? null : onVerifyIncident,
+              icon: verifyingIncident
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.verified_outlined),
+              label: Text(
+                verifyingIncident ? 'Verifying' : 'Verify incident',
+              ),
+            ),
+          ],
           if (isAdmin) ...[
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: onOpenReportsSidebar,
               icon: const Icon(Icons.article_outlined),
-              label: Text('Reports today ($todayReportCount)'),
+              label: Text('Report(s) today ($todayReportCount)'),
             ),
           ],
         ],
@@ -178,13 +209,17 @@ class _RelayGlobalMessageSection extends StatelessWidget {
     required this.broadcastHeadlineController,
     required this.broadcastMessageController,
     required this.publishingGlobalAlert,
+    required this.publishAdminsOnly,
     required this.onPublishGlobalAlert,
+    required this.onPublishAdminsOnlyChanged,
   });
 
   final TextEditingController broadcastHeadlineController;
   final TextEditingController broadcastMessageController;
   final bool publishingGlobalAlert;
+  final bool publishAdminsOnly;
   final VoidCallback onPublishGlobalAlert;
+  final ValueChanged<bool> onPublishAdminsOnlyChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +227,7 @@ class _RelayGlobalMessageSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Relay global message',
+          'Review emergency message',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
@@ -202,6 +237,26 @@ class _RelayGlobalMessageSection extends StatelessWidget {
             labelText: 'Headline',
             border: OutlineInputBorder(),
           ),
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<bool>(
+          initialValue: publishAdminsOnly,
+          decoration: const InputDecoration(
+            labelText: 'Audience',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: false, child: Text('Everyone')),
+            DropdownMenuItem(
+              value: true,
+              child: Text('Administrators only'),
+            ),
+          ],
+          onChanged: publishingGlobalAlert
+              ? null
+              : (value) {
+                  if (value != null) onPublishAdminsOnlyChanged(value);
+                },
         ),
         const SizedBox(height: 12),
         TextField(
@@ -227,7 +282,11 @@ class _RelayGlobalMessageSection extends StatelessWidget {
                   )
                 : const Icon(Icons.campaign),
             label: Text(
-              publishingGlobalAlert ? 'Publishing' : 'Publish to everyone',
+              publishingGlobalAlert
+                  ? 'Publishing'
+                  : publishAdminsOnly
+                      ? 'Publish to administrators'
+                      : 'Publish to everyone',
             ),
           ),
         ),
@@ -259,7 +318,7 @@ class TodayReportsSidebar extends StatelessWidget {
     final screenWidth = MediaQuery.sizeOf(context).width;
 
     return Drawer(
-      width: screenWidth < 520 ? screenWidth * 0.9 : 420,
+      width: screenWidth,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,13 +345,6 @@ class TodayReportsSidebar extends StatelessWidget {
                     icon: const Icon(Icons.refresh),
                   ),
                 ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                'Reports submitted today by organization members.',
-                style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
             const SizedBox(height: 12),
@@ -360,24 +412,44 @@ class _TodayReportsList extends StatelessWidget {
       itemBuilder: (context, index) {
         final report = reports[index];
         final responding = respondingReportId == report.id;
-        return ListTile(
-          leading: const Icon(Icons.warning_amber_rounded),
-          title: Text(report.emergencyTypeLabel),
-          subtitle: Text(
-            'Sent ${formatTimestamp(report.createdAt)} by ${report.reportedByUsername}\n${report.location}\n${report.details.isEmpty ? 'No additional details provided.' : report.details}',
-          ),
-          isThreeLine: true,
-          trailing: FilledButton.icon(
-            onPressed: respondingReportId == null
-                ? () => onRespondToReport(report)
-                : null,
-            icon: responding
-                ? const SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.forum_outlined),
-            label: Text(responding ? 'Opening' : 'Respond'),
+        final reportIcon = switch (report.emergencyType) {
+          'medical' => Icons.local_hospital_rounded,
+          'intruder' => Icons.security_rounded,
+          _ => Icons.local_fire_department_rounded,
+        };
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(reportIcon),
+                  const SizedBox(width: 10),
+                  Text(
+                    "${report.emergencyTypeLabel} Alert",
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Details: ${report.details.isEmpty ? 'No additional details provided.' : report.details}\nSent ${formatTimestamp(report.createdAt)} by ${report.reportedByUsername}',
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: respondingReportId == null
+                    ? () => onRespondToReport(report)
+                    : null,
+                icon: responding
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.forum_outlined),
+                label: Text(responding ? 'Opening' : 'Respond'),
+              ),
+            ],
           ),
         );
       },

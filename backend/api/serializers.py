@@ -60,7 +60,6 @@ class EmergencyReportSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "emergency_type",
-            "location",
             "details",
             "created_at",
             "reported_by_username",
@@ -94,13 +93,27 @@ class GlobalAlertSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GlobalAlert
-        fields = ["id", "headline", "message", "created_at", "created_by_username"]
+        fields = [
+            "id",
+            "headline",
+            "message",
+            "incident_type",
+            "admins_only",
+            "created_at",
+            "created_by_username",
+        ]
         read_only_fields = ["id", "created_at", "created_by_username"]
 
 
 class PublishGlobalAlertSerializer(serializers.Serializer):
     headline = serializers.CharField(max_length=120)
     message = serializers.CharField()
+    incident_type = serializers.ChoiceField(
+        choices=GlobalAlert.INCIDENT_CHOICES,
+        required=False,
+        default=GlobalAlert.INCIDENT_FIRE,
+    )
+    admins_only = serializers.BooleanField(required=False, default=False)
 
     def validate_headline(self, value):
         headline = value.strip()
@@ -125,7 +138,6 @@ class ReportConversationSerializer(serializers.ModelSerializer):
     reported_by_username = serializers.SerializerMethodField()
     emergency_type = serializers.CharField(source="report.emergency_type", read_only=True)
     emergency_type_label = serializers.SerializerMethodField()
-    location = serializers.CharField(source="report.location", read_only=True)
     report_details = serializers.CharField(source="report.details", read_only=True)
     report_created_at = serializers.DateTimeField(source="report.created_at", read_only=True)
     last_message = serializers.SerializerMethodField()
@@ -140,7 +152,6 @@ class ReportConversationSerializer(serializers.ModelSerializer):
             "reported_by_username",
             "emergency_type",
             "emergency_type_label",
-            "location",
             "report_details",
             "report_created_at",
             "last_message",
@@ -156,7 +167,7 @@ class ReportConversationSerializer(serializers.ModelSerializer):
         membership = getattr(user, "organization_membership", None)
         if membership is not None and membership.role == OrganizationMembership.ROLE_ADMINISTRATOR:
             return self.get_reported_by_username(conversation)
-        return f"{conversation.report.get_emergency_type_display()} report at {conversation.report.location}"
+        return f"{conversation.report.get_emergency_type_display()} report"
 
     def get_reported_by_username(self, conversation):
         reporter = conversation.report.reported_by

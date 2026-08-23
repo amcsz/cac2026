@@ -255,10 +255,6 @@ class _RoleField extends StatelessWidget {
           child: Text('Member'),
         ),
         DropdownMenuItem(
-          value: 'teacher',
-          child: Text('Teacher'),
-        ),
-        DropdownMenuItem(
           value: 'administrator',
           child: Text('Administrator'),
         ),

@@ -8,7 +8,6 @@ class ReportTab extends StatelessWidget {
     required this.submittingReport,
     required this.reportError,
     required this.reportSuccess,
-    required this.locationController,
     required this.detailsController,
     required this.onStartReport,
     required this.onReportTypeChanged,
@@ -25,7 +24,6 @@ class ReportTab extends StatelessWidget {
   final bool submittingReport;
   final String? reportError;
   final String? reportSuccess;
-  final TextEditingController locationController;
   final TextEditingController detailsController;
   final VoidCallback onStartReport;
   final ValueChanged<String> onReportTypeChanged;
@@ -52,19 +50,14 @@ class ReportTab extends StatelessWidget {
                     ),
               ),
               const SizedBox(height: 12),
-
               Text(
-                'Send a quick emergency report to your organization '
-                'administrators. Include your location first, then add '
-                'only the details you know.',
+                'Click the button below to send a report to your organization\'s administrators',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontSize: 19,
                       height: 1.5,
                     ),
               ),
-
               const SizedBox(height: 28),
-
               if (reportSuccess != null)
                 Container(
                   width: double.infinity,
@@ -84,7 +77,6 @@ class ReportTab extends StatelessWidget {
                     ),
                   ),
                 ),
-
               if (reportError != null)
                 Container(
                   width: double.infinity,
@@ -104,7 +96,6 @@ class ReportTab extends StatelessWidget {
                     ),
                   ),
                 ),
-
               if (!showReportForm)
                 SizedBox(
                   width: double.infinity,
@@ -136,7 +127,7 @@ class ReportTab extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Step ${reportStep + 1} of 3',
+                        'Step ${reportStep + 1} of 2',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -153,9 +144,7 @@ class ReportTab extends StatelessWidget {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 20),
-
                 if (reportStep == 0) ...[
                   const Text(
                     'What type of emergency is this?',
@@ -164,70 +153,41 @@ class ReportTab extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   _EmergencyButton(
                     title: 'Fire',
                     subtitle: 'Fire, smoke, or explosion',
                     icon: Icons.local_fire_department_rounded,
                     color: Colors.red,
                     selected: reportType == 'fire',
-                    onTap: () => onReportTypeChanged('fire'),
+                    onTap: () {
+                      onReportTypeChanged('fire');
+                      onNext();
+                    },
                   ),
-
                   const SizedBox(height: 14),
-
                   _EmergencyButton(
                     title: 'Medical',
                     subtitle: 'Injury or medical emergency',
                     icon: Icons.local_hospital_rounded,
                     color: Colors.blue,
                     selected: reportType == 'medical',
-                    onTap: () => onReportTypeChanged('medical'),
+                    onTap: () {
+                      onReportTypeChanged('medical');
+                      onNext();
+                    },
                   ),
-
                   const SizedBox(height: 14),
-
                   _EmergencyButton(
                     title: 'Intruder',
-                    subtitle: 'Threat or unauthorized person',
+                    subtitle: 'Suspicious person or security threat',
                     icon: Icons.security_rounded,
                     color: Colors.black,
                     selected: reportType == 'intruder',
-                    onTap: () => onReportTypeChanged('intruder'),
-                  ),
-                ] else if (reportStep == 1) ...[
-                  const Text(
-                    'Where are you right now?',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  TextField(
-                    controller: locationController,
-                    style: const TextStyle(fontSize: 20),
-                    decoration: InputDecoration(
-                      labelText: 'Location',
-                      labelStyle: const TextStyle(fontSize: 18),
-                      hintText: 'Example: Building A, Room 204',
-                      hintStyle: const TextStyle(fontSize: 17),
-                      prefixIcon: const Icon(
-                        Icons.location_on_rounded,
-                        size: 30,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 22,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
+                    onTap: () {
+                      onReportTypeChanged('intruder');
+                      onNext();
+                    },
                   ),
                 ] else ...[
                   const Text(
@@ -237,9 +197,7 @@ class ReportTab extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   TextField(
                     controller: detailsController,
                     maxLines: 5,
@@ -249,7 +207,7 @@ class ReportTab extends StatelessWidget {
                       labelStyle: const TextStyle(fontSize: 18),
                       hintText: switch (reportType) {
                         'fire' =>
-                          'Describe how people escaped, where you see fire or smoke, what is burning, and any immediate hazards...',
+                          'Tell us briefly what happened, where it happened, and your evacuation route if you reached safety.',
                         'medical' =>
                           'Describe how many people are hurt, their current condition, what happened, and any help they need...',
                         'intruder' =>
@@ -266,9 +224,7 @@ class ReportTab extends StatelessWidget {
                     ),
                   ),
                 ],
-
                 const SizedBox(height: 30),
-
                 Row(
                   children: [
                     if (reportStep > 0)
@@ -291,36 +247,12 @@ class ReportTab extends StatelessWidget {
                           ),
                         ),
                       ),
-
                     const Spacer(),
-
-                    if (reportStep < 2)
-                      SizedBox(
-                        height: 56,
-                        child: FilledButton.icon(
-                          onPressed: onNext,
-                          iconAlignment: IconAlignment.end,
-                          icon: const Icon(Icons.arrow_forward_rounded),
-                          label: const Text(
-                            'Next',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 28,
-                            ),
-                          ),
-                        ),
-                      )
-                    else
+                    if (reportStep == 1)
                       SizedBox(
                         height: 60,
                         child: FilledButton.icon(
-                          onPressed:
-                              submittingReport ? null : onSubmit,
+                          onPressed: submittingReport ? null : onSubmit,
                           style: FilledButton.styleFrom(
                             backgroundColor: Colors.red.shade700,
                             foregroundColor: Colors.white,
@@ -408,9 +340,8 @@ class _EmergencyButton extends StatelessWidget {
                 width: 62,
                 height: 62,
                 decoration: BoxDecoration(
-                  color: selected
-                      ? Colors.white.withValues(alpha: 0.18)
-                      : color,
+                  color:
+                      selected ? Colors.white.withValues(alpha: 0.18) : color,
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Icon(
@@ -419,9 +350,7 @@ class _EmergencyButton extends StatelessWidget {
                   size: 36,
                 ),
               ),
-
               const SizedBox(width: 20),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,9 +369,7 @@ class _EmergencyButton extends StatelessWidget {
                       style: TextStyle(
                         color: selected
                             ? Colors.white.withValues(alpha: 0.9)
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
@@ -450,13 +377,9 @@ class _EmergencyButton extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(width: 12),
-
               Icon(
-                selected
-                    ? Icons.check_circle_rounded
-                    : Icons.circle_outlined,
+                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
                 color: selected ? Colors.white : color,
                 size: 30,
               ),

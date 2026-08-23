@@ -5,19 +5,22 @@ import firebase_admin
 from django.conf import settings
 from firebase_admin import credentials, messaging
 
-from .models import FcmDevice
+from .models import FcmDevice, OrganizationMembership
 
 
 logger = logging.getLogger(__name__)
 
 
 def send_global_alert_push(alert):
-    tokens = list(
-        FcmDevice.objects.filter(
-            organization=alert.organization,
-            is_active=True,
-        ).values_list("token", flat=True)
+    devices = FcmDevice.objects.filter(
+        organization=alert.organization,
+        is_active=True,
     )
+    if alert.admins_only:
+        devices = devices.filter(
+            user__organization_membership__role=OrganizationMembership.ROLE_ADMINISTRATOR,
+        )
+    tokens = list(devices.values_list("token", flat=True))
     if not tokens:
         logger.warning(
             "No active FCM devices for global alert id=%s organization_id=%s",

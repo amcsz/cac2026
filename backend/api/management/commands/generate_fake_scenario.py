@@ -43,7 +43,7 @@ class Command(BaseCommand):
         for report in created:
             self.stdout.write(
                 f"{report.created_at.isoformat()} | {report.reported_by.username} | "
-                f"{report.get_emergency_type_display()} | {report.location}"
+                f"{report.get_emergency_type_display()}"
             )
 
     def _find_organization(self, value):

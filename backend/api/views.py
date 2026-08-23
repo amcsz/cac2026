@@ -12,6 +12,7 @@ from .ai_summary import (
     AiSummaryUnavailable,
     get_cached_daily_report_summary,
     refresh_daily_report_summary,
+    verify_daily_report_summary,
 )
 from .models import (
     ArchiveDay,
@@ -572,6 +573,16 @@ class AlertSummaryView(APIView):
 
         return Response(get_cached_daily_report_summary(membership.organization))
 
+    def post(self, request):
+        membership, response = _admin_membership_or_response(
+            request.user,
+            "Only administrators can verify incidents.",
+        )
+        if response is not None:
+            return response
+
+        return Response(verify_daily_report_summary(membership.organization))
+
 
 class GlobalAlertView(APIView):
     permission_classes = [IsAuthenticated]
@@ -584,7 +595,13 @@ class GlobalAlertView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        alert = GlobalAlert.objects.filter(organization=membership.organization, is_active=True).select_related("created_by").first()
+        alerts = GlobalAlert.objects.filter(
+            organization=membership.organization,
+            is_active=True,
+        ).select_related("created_by")
+        if membership.role != OrganizationMembership.ROLE_ADMINISTRATOR:
+            alerts = alerts.filter(admins_only=False)
+        alert = alerts.first()
         if alert is None:
             return Response({"alert": None})
         return Response({"alert": GlobalAlertSerializer(alert).data})
@@ -598,12 +615,20 @@ class GlobalAlertView(APIView):
             )
 
         serializer = PublishGlobalAlertSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            logger.warning(
+                "Global alert validation failed fields=%s incident_type=%s",
+                list(serializer.errors.keys()),
+                request.data.get("incident_type"),
+            )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         alert = GlobalAlert.objects.create(
             organization=membership.organization,
             created_by=request.user,
             headline=serializer.validated_data["headline"],
             message=serializer.validated_data["message"],
+            incident_type=serializer.validated_data["incident_type"],
+            admins_only=serializer.validated_data["admins_only"],
         )
         alert.archive_day = get_archive_day_for_datetime(
             membership.organization,

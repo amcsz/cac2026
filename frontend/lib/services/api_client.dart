@@ -163,7 +163,6 @@ class ApiClient {
 
   Future<EmergencyReport> submitEmergencyReport({
     required String emergencyType,
-    required String location,
     required String details,
   }) async {
     final response = await http.post(
@@ -171,7 +170,6 @@ class ApiClient {
       headers: _headers,
       body: jsonEncode({
         'emergency_type': emergencyType,
-        'location': location,
         'details': details,
       }),
     );
@@ -273,6 +271,21 @@ class ApiClient {
     throw ApiException(_extractError(response));
   }
 
+  Future<AlertSummary> verifyAlertSummary() async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/alerts/summary/'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return AlertSummary.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+      );
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
   Future<GlobalAlert?> fetchGlobalAlert() async {
     final response = await http.get(
       Uri.parse('${AppConfig.apiBaseUrl}/alerts/global/'),
@@ -294,11 +307,18 @@ class ApiClient {
   Future<GlobalAlert> publishGlobalAlert({
     required String headline,
     required String message,
+    required String incidentType,
+    required bool adminsOnly,
   }) async {
     final response = await http.post(
       Uri.parse('${AppConfig.apiBaseUrl}/alerts/global/'),
       headers: _headers,
-      body: jsonEncode({'headline': headline, 'message': message}),
+      body: jsonEncode({
+        'headline': headline,
+        'message': message,
+        'incident_type': incidentType,
+        'admins_only': adminsOnly,
+      }),
     );
 
     if (response.statusCode == 201) {

@@ -27,11 +27,14 @@ class _GlobalAlertBannerState extends State<GlobalAlertBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final alert = widget.alert;
+    final intruderAlert = alert.incidentType == 'intruder';
+    final backgroundColor =
+        intruderAlert ? Colors.black : const Color(0xffc62828);
+    const foregroundColor = Colors.white;
 
     return Material(
-      color: colorScheme.errorContainer,
+      color: backgroundColor,
       child: SafeArea(
         bottom: false,
         child: InkWell(
@@ -42,7 +45,7 @@ class _GlobalAlertBannerState extends State<GlobalAlertBanner> {
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: colorScheme.error.withValues(alpha: 0.35),
+                  color: foregroundColor.withValues(alpha: 0.35),
                   width: 2,
                 ),
               ),
@@ -56,9 +59,9 @@ class _GlobalAlertBannerState extends State<GlobalAlertBanner> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.campaign,
-                          color: colorScheme.onErrorContainer,
+                          color: foregroundColor,
                           size: 34,
                         ),
                         const SizedBox(width: 12),
@@ -71,54 +74,37 @@ class _GlobalAlertBannerState extends State<GlobalAlertBanner> {
                                 .textTheme
                                 .displaySmall
                                 ?.copyWith(
-                                  color: colorScheme.onErrorContainer,
+                                  color: foregroundColor,
                                   fontWeight: FontWeight.w900,
                                 ),
                           ),
                         ),
                         Icon(
                           _expanded ? Icons.expand_less : Icons.expand_more,
-                          color: colorScheme.onErrorContainer,
+                          color: foregroundColor,
                         ),
                       ],
                     ),
-                    AnimatedCrossFade(
-                      firstChild: Padding(
+                    if (_expanded) ...[
+                      Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: MarkdownText(
                           alert.message,
-                          style: TextStyle(
-                            color: colorScheme.onErrorContainer,
+                          style: const TextStyle(
+                            color: foregroundColor,
                             fontSize: 16,
                           ),
                         ),
                       ),
-                      secondChild: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: MarkdownText(
-                          alert.message,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: colorScheme.onErrorContainer,
-                            fontSize: 15,
-                          ),
-                        ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Announced ${formatTimestamp(alert.createdAt)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: foregroundColor.withValues(alpha: 0.82),
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
-                      crossFadeState: _expanded
-                          ? CrossFadeState.showFirst
-                          : CrossFadeState.showSecond,
-                      duration: const Duration(milliseconds: 180),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Announced ${formatTimestamp(alert.createdAt)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onErrorContainer
-                                .withValues(alpha: 0.82),
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
+                    ],
                   ],
                 ),
               ),

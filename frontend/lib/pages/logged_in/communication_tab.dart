@@ -16,6 +16,7 @@ class CommunicationTab extends StatelessWidget {
     required this.sendingMessage,
     required this.messageController,
     required this.onRefreshConversations,
+    required this.onRefreshMessages,
     required this.onSelectConversation,
     required this.onBackToConversations,
     required this.onSendMessage,
@@ -33,6 +34,7 @@ class CommunicationTab extends StatelessWidget {
   final bool sendingMessage;
   final TextEditingController messageController;
   final VoidCallback onRefreshConversations;
+  final ValueChanged<int> onRefreshMessages;
   final ValueChanged<ReportConversation> onSelectConversation;
   final VoidCallback onBackToConversations;
   final VoidCallback onSendMessage;
@@ -76,6 +78,9 @@ class CommunicationTab extends StatelessWidget {
                   sendingMessage: sendingMessage,
                   messageController: messageController,
                   onBackToConversations: null,
+                  onRefreshMessages: selectedConversation == null
+                      ? null
+                      : () => onRefreshMessages(selectedConversation!.id),
                   onSendMessage: onSendMessage,
                 ),
               ),
@@ -93,6 +98,8 @@ class CommunicationTab extends StatelessWidget {
             sendingMessage: sendingMessage,
             messageController: messageController,
             onBackToConversations: onBackToConversations,
+            onRefreshMessages: () =>
+                onRefreshMessages(selectedConversation!.id),
             onSendMessage: onSendMessage,
           );
         }
@@ -228,7 +235,7 @@ class _ConversationListBody extends StatelessWidget {
           title: Text(conversation.title),
           subtitle: Text(
             conversation.lastMessage.isEmpty
-                ? '${conversation.emergencyTypeLabel} at ${conversation.location}'
+                ? conversation.emergencyTypeLabel
                 : conversation.lastMessage,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -256,6 +263,7 @@ class _ConversationDetail extends StatelessWidget {
     required this.sendingMessage,
     required this.messageController,
     required this.onBackToConversations,
+    required this.onRefreshMessages,
     required this.onSendMessage,
   });
 
@@ -267,6 +275,7 @@ class _ConversationDetail extends StatelessWidget {
   final bool sendingMessage;
   final TextEditingController messageController;
   final VoidCallback? onBackToConversations;
+  final VoidCallback? onRefreshMessages;
   final VoidCallback onSendMessage;
 
   @override
@@ -286,6 +295,8 @@ class _ConversationDetail extends StatelessWidget {
           isAdmin: isAdmin,
           conversation: conversation!,
           onBackToConversations: onBackToConversations,
+          loadingMessages: loadingMessages,
+          onRefreshMessages: onRefreshMessages,
         ),
         const Divider(height: 1),
         Expanded(
@@ -310,11 +321,15 @@ class _ConversationHeader extends StatelessWidget {
     required this.isAdmin,
     required this.conversation,
     required this.onBackToConversations,
+    required this.loadingMessages,
+    required this.onRefreshMessages,
   });
 
   final bool isAdmin;
   final ReportConversation conversation;
   final VoidCallback? onBackToConversations;
+  final bool loadingMessages;
+  final VoidCallback? onRefreshMessages;
 
   @override
   Widget build(BuildContext context) {
@@ -348,10 +363,6 @@ class _ConversationHeader extends StatelessWidget {
                         : '${conversation.emergencyTypeLabel} report sent ${formatTimestamp(conversation.reportCreatedAt)}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  Text(
-                    conversation.location,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
                   if (reportDetails.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -361,6 +372,11 @@ class _ConversationHeader extends StatelessWidget {
                   ],
                 ],
               ),
+            ),
+            IconButton(
+              tooltip: 'Refresh conversation',
+              onPressed: loadingMessages ? null : onRefreshMessages,
+              icon: const Icon(Icons.refresh),
             ),
           ],
         ),
