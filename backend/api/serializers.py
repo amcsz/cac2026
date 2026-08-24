@@ -142,6 +142,8 @@ class ReportConversationSerializer(serializers.ModelSerializer):
     report_created_at = serializers.DateTimeField(source="report.created_at", read_only=True)
     last_message = serializers.SerializerMethodField()
     last_message_at = serializers.SerializerMethodField()
+    last_message_id = serializers.SerializerMethodField()
+    last_message_sender_id = serializers.SerializerMethodField()
 
     class Meta:
         model = ReportConversation
@@ -156,6 +158,8 @@ class ReportConversationSerializer(serializers.ModelSerializer):
             "report_created_at",
             "last_message",
             "last_message_at",
+            "last_message_id",
+            "last_message_sender_id",
             "created_at",
             "updated_at",
         ]
@@ -185,6 +189,14 @@ class ReportConversationSerializer(serializers.ModelSerializer):
     def get_last_message_at(self, conversation):
         message = conversation.messages.order_by("-created_at").first()
         return message.created_at if message is not None else None
+
+    def get_last_message_id(self, conversation):
+        message = conversation.messages.order_by("-created_at").first()
+        return message.id if message is not None else None
+
+    def get_last_message_sender_id(self, conversation):
+        message = conversation.messages.order_by("-created_at").first()
+        return message.sender_id if message is not None else None
 
 
 class CreateReportConversationSerializer(serializers.Serializer):

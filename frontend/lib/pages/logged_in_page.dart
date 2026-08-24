@@ -49,6 +49,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _loadingReports = false;
   String? _reportsError;
   List<EmergencyReport> _reports = [];
+  final Set<int> _readReportIds = {};
+  final Set<int> _unreadReportIds = {};
+  Set<int> _highlightedReportIds = {};
   bool _loadingArchiveDays = false;
   String? _archiveDaysError;
   List<ReportArchiveDay> _archiveDays = [];
@@ -88,6 +91,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _loadingConversations = false;
   String? _conversationsError;
   List<ReportConversation> _conversations = [];
+  final Set<int> _unreadConversationIds = {};
+  final Set<int> _readMessageIds = {};
+  Set<int> _highlightedMessageIds = {};
   int? _selectedConversationId;
   bool _loadingMessages = false;
   String? _messagesError;
@@ -126,6 +132,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
     _requestNotificationPermission();
     _loadGlobalAlert(notifyIfChanged: false);
     _loadConversations();
+    _startCommunicationsPolling();
     _startGlobalAlertPolling();
     _loadAlertSummary();
     _startAlertSummaryPolling();
@@ -166,7 +173,12 @@ class _LoggedInPageState extends State<LoggedInPage> {
     _alertSummaryPoller?.cancel();
     _alertSummaryPoller = Timer.periodic(
       _alertSummaryPollInterval,
-      (_) => _loadAlertSummary(showLoading: false),
+      (_) {
+        _loadAlertSummary(showLoading: false);
+        if (_isAdmin) {
+          _loadReports();
+        }
+      },
     );
   }
 
@@ -178,13 +190,8 @@ class _LoggedInPageState extends State<LoggedInPage> {
     );
   }
 
-  void _stopCommunicationsPolling() {
-    _communicationsPoller?.cancel();
-    _communicationsPoller = null;
-  }
-
   Future<void> _pollCommunications() async {
-    if (_selectedIndex != 2 || _pollingCommunications) {
+    if (_pollingCommunications) {
       return;
     }
 
@@ -192,7 +199,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
     try {
       await _loadConversations(showLoading: false);
       final conversationId = _selectedConversationId;
-      if (conversationId != null) {
+      if (_selectedIndex == 2 && conversationId != null) {
         await _loadConversationMessages(conversationId, showLoading: false);
       }
     } finally {
@@ -245,7 +252,16 @@ class _LoggedInPageState extends State<LoggedInPage> {
       final reports =
           await ApiClient(token: widget.token).fetchEmergencyReports();
       if (mounted) {
-        setState(() => _reports = reports);
+        setState(() {
+          _reports = reports;
+          _unreadReportIds
+            ..clear()
+            ..addAll(
+              reports
+                  .where((report) => !_readReportIds.contains(report.id))
+                  .map((report) => report.id),
+            );
+        });
       }
     } on ApiException catch (error) {
       if (mounted) {
@@ -610,6 +626,18 @@ class _LoggedInPageState extends State<LoggedInPage> {
       if (mounted) {
         setState(() {
           _conversations = conversations;
+          _unreadConversationIds
+            ..clear()
+            ..addAll(
+              conversations
+                  .where(
+                    (conversation) =>
+                        conversation.lastMessageId != null &&
+                        conversation.lastMessageSenderId != widget.user.id &&
+                        !_readMessageIds.contains(conversation.lastMessageId),
+                  )
+                  .map((conversation) => conversation.id),
+            );
           if (_selectedConversationId != null &&
               !conversations.any((conversation) =>
                   conversation.id == _selectedConversationId)) {
@@ -668,6 +696,20 @@ class _LoggedInPageState extends State<LoggedInPage> {
 
   Future<void> _openConversation(ReportConversation conversation) async {
     await _loadConversationMessages(conversation.id);
+    if (!mounted || _selectedConversationId != conversation.id) {
+      return;
+    }
+
+    final unreadMessages = _messages
+        .where((message) =>
+            !message.isMine && !_readMessageIds.contains(message.id))
+        .map((message) => message.id)
+        .toSet();
+    setState(() {
+      _highlightedMessageIds = unreadMessages;
+      _readMessageIds.addAll(unreadMessages);
+      _unreadConversationIds.remove(conversation.id);
+    });
   }
 
   void _backToConversations() {
@@ -938,8 +980,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
     if (index == 2) {
       _loadConversations();
       _startCommunicationsPolling();
-    } else {
-      _stopCommunicationsPolling();
     }
     if (index == 3 && _isAdmin) {
       _loadArchiveDays(page: _archiveDaysPage);
@@ -954,6 +994,11 @@ class _LoggedInPageState extends State<LoggedInPage> {
       return;
     }
 
+    setState(() {
+      _highlightedReportIds = {..._unreadReportIds};
+      _readReportIds.addAll(_reports.map((report) => report.id));
+      _unreadReportIds.clear();
+    });
     _loadReports();
     _scaffoldKey.currentState?.openEndDrawer();
   }
@@ -1029,6 +1074,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   publishAdminsOnly: _publishAdminsOnly,
                   clearingGlobalAlert: _clearingGlobalAlert,
                   todayReportCount: _reports.length,
+                  unreadReportCount: _unreadReportIds.length,
                   onOpenReportsSidebar: _openTodayReportsSidebar,
                   onVerifyIncident: _verifyIncident,
                   onPublishGlobalAlert: _publishGlobalAlert,
@@ -1042,6 +1088,9 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   loadingConversations: _loadingConversations,
                   conversationsError: _conversationsError,
                   conversations: _conversations,
+                  unreadConversationCount: _unreadConversationIds.length,
+                  unreadConversationIds: _unreadConversationIds,
+                  highlightedMessageIds: _highlightedMessageIds,
                   selectedConversationId: _selectedConversationId,
                   loadingMessages: _loadingMessages,
                   messagesError: _messagesError,
@@ -1107,6 +1156,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
               reportsError: _reportsError,
               reports: _reports,
               respondingReportId: _respondingReportId,
+              highlightedReportIds: _highlightedReportIds,
               onRefresh: _loadReports,
               onRespondToReport: _respondToReport,
             )
@@ -1120,14 +1170,26 @@ class _LoggedInPageState extends State<LoggedInPage> {
             selectedIcon: Icon(Icons.report),
             label: 'Report',
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.crisis_alert_outlined),
-            selectedIcon: Icon(Icons.crisis_alert),
+          NavigationDestination(
+            icon: _NavigationBadgeIcon(
+              icon: Icons.crisis_alert_outlined,
+              count: _unreadReportIds.length,
+            ),
+            selectedIcon: _NavigationBadgeIcon(
+              icon: Icons.crisis_alert,
+              count: _unreadReportIds.length,
+            ),
             label: 'Alerts',
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.forum_outlined),
-            selectedIcon: Icon(Icons.forum),
+          NavigationDestination(
+            icon: _NavigationBadgeIcon(
+              icon: Icons.forum_outlined,
+              count: _unreadConversationIds.length,
+            ),
+            selectedIcon: _NavigationBadgeIcon(
+              icon: Icons.forum,
+              count: _unreadConversationIds.length,
+            ),
             label: 'Comms',
           ),
           if (_isAdmin)
@@ -1363,6 +1425,45 @@ class _FullScreenGlobalAlertDialog extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _NavigationBadgeIcon extends StatelessWidget {
+  const _NavigationBadgeIcon({required this.icon, required this.count});
+
+  final IconData icon;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(icon),
+        if (count > 0)
+          Positioned(
+            right: -10,
+            top: -8,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.error,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                count > 99 ? '99+' : '$count',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

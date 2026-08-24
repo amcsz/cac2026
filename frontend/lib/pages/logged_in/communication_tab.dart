@@ -9,6 +9,9 @@ class CommunicationTab extends StatelessWidget {
     required this.loadingConversations,
     required this.conversationsError,
     required this.conversations,
+    required this.unreadConversationCount,
+    required this.unreadConversationIds,
+    required this.highlightedMessageIds,
     required this.selectedConversationId,
     required this.loadingMessages,
     required this.messagesError,
@@ -27,6 +30,9 @@ class CommunicationTab extends StatelessWidget {
   final bool loadingConversations;
   final String? conversationsError;
   final List<ReportConversation> conversations;
+  final int unreadConversationCount;
+  final Set<int> unreadConversationIds;
+  final Set<int> highlightedMessageIds;
   final int? selectedConversationId;
   final bool loadingMessages;
   final String? messagesError;
@@ -62,6 +68,9 @@ class CommunicationTab extends StatelessWidget {
                   loadingConversations: loadingConversations,
                   conversationsError: conversationsError,
                   conversations: conversations,
+                  unreadConversationCount: unreadConversationCount,
+                  unreadConversationIds: unreadConversationIds,
+                  highlightedMessageIds: highlightedMessageIds,
                   selectedConversationId: selectedConversationId,
                   onRefreshConversations: onRefreshConversations,
                   onSelectConversation: onSelectConversation,
@@ -75,6 +84,7 @@ class CommunicationTab extends StatelessWidget {
                   loadingMessages: loadingMessages,
                   messagesError: messagesError,
                   messages: messages,
+                  highlightedMessageIds: highlightedMessageIds,
                   sendingMessage: sendingMessage,
                   messageController: messageController,
                   onBackToConversations: null,
@@ -95,6 +105,7 @@ class CommunicationTab extends StatelessWidget {
             loadingMessages: loadingMessages,
             messagesError: messagesError,
             messages: messages,
+            highlightedMessageIds: highlightedMessageIds,
             sendingMessage: sendingMessage,
             messageController: messageController,
             onBackToConversations: onBackToConversations,
@@ -109,6 +120,9 @@ class CommunicationTab extends StatelessWidget {
           loadingConversations: loadingConversations,
           conversationsError: conversationsError,
           conversations: conversations,
+          unreadConversationCount: unreadConversationCount,
+          unreadConversationIds: unreadConversationIds,
+          highlightedMessageIds: highlightedMessageIds,
           selectedConversationId: selectedConversationId,
           onRefreshConversations: onRefreshConversations,
           onSelectConversation: onSelectConversation,
@@ -124,6 +138,9 @@ class _ConversationList extends StatelessWidget {
     required this.loadingConversations,
     required this.conversationsError,
     required this.conversations,
+    required this.unreadConversationCount,
+    required this.unreadConversationIds,
+    required this.highlightedMessageIds,
     required this.selectedConversationId,
     required this.onRefreshConversations,
     required this.onSelectConversation,
@@ -133,6 +150,9 @@ class _ConversationList extends StatelessWidget {
   final bool loadingConversations;
   final String? conversationsError;
   final List<ReportConversation> conversations;
+  final int unreadConversationCount;
+  final Set<int> unreadConversationIds;
+  final Set<int> highlightedMessageIds;
   final int? selectedConversationId;
   final VoidCallback onRefreshConversations;
   final ValueChanged<ReportConversation> onSelectConversation;
@@ -152,6 +172,9 @@ class _ConversationList extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ),
+              if (unreadConversationCount > 0)
+                _UnreadBadge(count: unreadConversationCount),
+              const SizedBox(width: 8),
               IconButton(
                 tooltip: 'Refresh communications',
                 onPressed: loadingConversations ? null : onRefreshConversations,
@@ -177,6 +200,7 @@ class _ConversationList extends StatelessWidget {
             conversationsError: conversationsError,
             conversations: conversations,
             selectedConversationId: selectedConversationId,
+            unreadConversationIds: unreadConversationIds,
             onSelectConversation: onSelectConversation,
           ),
         ),
@@ -191,6 +215,7 @@ class _ConversationListBody extends StatelessWidget {
     required this.conversationsError,
     required this.conversations,
     required this.selectedConversationId,
+    required this.unreadConversationIds,
     required this.onSelectConversation,
   });
 
@@ -198,6 +223,7 @@ class _ConversationListBody extends StatelessWidget {
   final String? conversationsError;
   final List<ReportConversation> conversations;
   final int? selectedConversationId;
+  final Set<int> unreadConversationIds;
   final ValueChanged<ReportConversation> onSelectConversation;
 
   @override
@@ -229,7 +255,11 @@ class _ConversationListBody extends StatelessWidget {
       itemBuilder: (context, index) {
         final conversation = conversations[index];
         final selected = conversation.id == selectedConversationId;
+        final unread = unreadConversationIds.contains(conversation.id);
         return ListTile(
+          tileColor: unread
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.10)
+              : null,
           selected: selected,
           leading: const Icon(Icons.forum_outlined),
           title: Text(conversation.title),
@@ -242,9 +272,16 @@ class _ConversationListBody extends StatelessWidget {
           ),
           trailing: conversation.lastMessageAt.isEmpty
               ? null
-              : Text(
-                  formatTimestamp(conversation.lastMessageAt),
-                  style: Theme.of(context).textTheme.bodySmall,
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (unread) const _UnreadBadge(count: 0, label: 'NEW'),
+                    const SizedBox(width: 8),
+                    Text(
+                      formatTimestamp(conversation.lastMessageAt),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
           onTap: () => onSelectConversation(conversation),
         );
@@ -260,6 +297,7 @@ class _ConversationDetail extends StatelessWidget {
     required this.loadingMessages,
     required this.messagesError,
     required this.messages,
+    required this.highlightedMessageIds,
     required this.sendingMessage,
     required this.messageController,
     required this.onBackToConversations,
@@ -272,6 +310,7 @@ class _ConversationDetail extends StatelessWidget {
   final bool loadingMessages;
   final String? messagesError;
   final List<ReportChatMessage> messages;
+  final Set<int> highlightedMessageIds;
   final bool sendingMessage;
   final TextEditingController messageController;
   final VoidCallback? onBackToConversations;
@@ -304,6 +343,7 @@ class _ConversationDetail extends StatelessWidget {
             loadingMessages: loadingMessages,
             messagesError: messagesError,
             messages: messages,
+            highlightedMessageIds: highlightedMessageIds,
           ),
         ),
         _MessageComposer(
@@ -390,11 +430,13 @@ class _MessagesBody extends StatelessWidget {
     required this.loadingMessages,
     required this.messagesError,
     required this.messages,
+    required this.highlightedMessageIds,
   });
 
   final bool loadingMessages;
   final String? messagesError;
   final List<ReportChatMessage> messages;
+  final Set<int> highlightedMessageIds;
 
   @override
   Widget build(BuildContext context) {
@@ -426,16 +468,20 @@ class _MessagesBody extends StatelessWidget {
       itemCount: messages.length,
       itemBuilder: (context, index) {
         final message = messages[index];
-        return _MessageBubble(message: message);
+        return _MessageBubble(
+          message: message,
+          highlighted: highlightedMessageIds.contains(message.id),
+        );
       },
     );
   }
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message});
+  const _MessageBubble({required this.message, required this.highlighted});
 
   final ReportChatMessage message;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -448,8 +494,11 @@ class _MessageBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color:
-              mine ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+          color: highlighted
+              ? colorScheme.tertiaryContainer
+              : mine
+                  ? colorScheme.primary
+                  : colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -481,6 +530,32 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UnreadBadge extends StatelessWidget {
+  const _UnreadBadge({required this.count, this.label});
+
+  final int count;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.error,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label ?? '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

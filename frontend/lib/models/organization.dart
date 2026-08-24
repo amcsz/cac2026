@@ -233,6 +233,8 @@ class ReportConversation {
     required this.reportCreatedAt,
     required this.lastMessage,
     required this.lastMessageAt,
+    required this.lastMessageId,
+    required this.lastMessageSenderId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -247,6 +249,8 @@ class ReportConversation {
   final String reportCreatedAt;
   final String lastMessage;
   final String lastMessageAt;
+  final int? lastMessageId;
+  final int? lastMessageSenderId;
   final String createdAt;
   final String updatedAt;
 
@@ -262,6 +266,8 @@ class ReportConversation {
       reportCreatedAt: json['report_created_at'] as String? ?? '',
       lastMessage: json['last_message'] as String? ?? '',
       lastMessageAt: json['last_message_at'] as String? ?? '',
+      lastMessageId: json['last_message_id'] as int?,
+      lastMessageSenderId: json['last_message_sender_id'] as int?,
       createdAt: json['created_at'] as String? ?? '',
       updatedAt: json['updated_at'] as String? ?? '',
     );

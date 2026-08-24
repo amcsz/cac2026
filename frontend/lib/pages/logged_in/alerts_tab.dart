@@ -18,6 +18,7 @@ class AlertsTab extends StatelessWidget {
     required this.publishAdminsOnly,
     required this.clearingGlobalAlert,
     required this.todayReportCount,
+    required this.unreadReportCount,
     required this.onOpenReportsSidebar,
     required this.onVerifyIncident,
     required this.onPublishGlobalAlert,
@@ -38,6 +39,7 @@ class AlertsTab extends StatelessWidget {
   final bool publishAdminsOnly;
   final bool clearingGlobalAlert;
   final int todayReportCount;
+  final int unreadReportCount;
   final VoidCallback onOpenReportsSidebar;
   final VoidCallback onVerifyIncident;
   final VoidCallback onPublishGlobalAlert;
@@ -72,6 +74,7 @@ class AlertsTab extends StatelessWidget {
                 alertSummary: alertSummary,
                 verifyingIncident: verifyingIncident,
                 todayReportCount: todayReportCount,
+                unreadReportCount: unreadReportCount,
                 onOpenReportsSidebar: onOpenReportsSidebar,
                 onVerifyIncident: onVerifyIncident,
               ),
@@ -129,6 +132,7 @@ class _EmergencySummarySection extends StatelessWidget {
     required this.alertSummary,
     required this.verifyingIncident,
     required this.todayReportCount,
+    required this.unreadReportCount,
     required this.onOpenReportsSidebar,
     required this.onVerifyIncident,
   });
@@ -139,6 +143,7 @@ class _EmergencySummarySection extends StatelessWidget {
   final AlertSummary? alertSummary;
   final bool verifyingIncident;
   final int todayReportCount;
+  final int unreadReportCount;
   final VoidCallback onOpenReportsSidebar;
   final VoidCallback onVerifyIncident;
 
@@ -195,7 +200,16 @@ class _EmergencySummarySection extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onOpenReportsSidebar,
               icon: const Icon(Icons.article_outlined),
-              label: Text('Report(s) today ($todayReportCount)'),
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Report(s) today ($todayReportCount)'),
+                  if (unreadReportCount > 0) ...[
+                    const SizedBox(width: 10),
+                    _UnreadBadge(count: unreadReportCount),
+                  ],
+                ],
+              ),
             ),
           ],
         ],
@@ -303,6 +317,7 @@ class TodayReportsSidebar extends StatelessWidget {
     required this.respondingReportId,
     required this.onRefresh,
     required this.onRespondToReport,
+    required this.highlightedReportIds,
     super.key,
   });
 
@@ -312,6 +327,7 @@ class TodayReportsSidebar extends StatelessWidget {
   final int? respondingReportId;
   final VoidCallback onRefresh;
   final ValueChanged<EmergencyReport> onRespondToReport;
+  final Set<int> highlightedReportIds;
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +371,7 @@ class TodayReportsSidebar extends StatelessWidget {
                 reportsError: reportsError,
                 reports: reports,
                 respondingReportId: respondingReportId,
+                highlightedReportIds: highlightedReportIds,
                 onRespondToReport: onRespondToReport,
               ),
             ),
@@ -372,6 +389,7 @@ class _TodayReportsList extends StatelessWidget {
     required this.reports,
     required this.respondingReportId,
     required this.onRespondToReport,
+    required this.highlightedReportIds,
   });
 
   final bool loadingReports;
@@ -379,6 +397,7 @@ class _TodayReportsList extends StatelessWidget {
   final List<EmergencyReport> reports;
   final int? respondingReportId;
   final ValueChanged<EmergencyReport> onRespondToReport;
+  final Set<int> highlightedReportIds;
 
   @override
   Widget build(BuildContext context) {
@@ -411,19 +430,27 @@ class _TodayReportsList extends StatelessWidget {
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final report = reports[index];
+        final unread = highlightedReportIds.contains(report.id);
         final responding = respondingReportId == report.id;
         final reportIcon = switch (report.emergencyType) {
           'medical' => Icons.local_hospital_rounded,
           'intruder' => Icons.security_rounded,
           _ => Icons.local_fire_department_rounded,
         };
-        return Padding(
+        return Container(
+          color: unread
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.10)
+              : null,
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
+                  if (unread) ...[
+                    const _UnreadBadge(count: 0, label: 'NEW'),
+                    const SizedBox(width: 10),
+                  ],
                   Icon(reportIcon),
                   const SizedBox(width: 10),
                   Text(
@@ -453,6 +480,32 @@ class _TodayReportsList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _UnreadBadge extends StatelessWidget {
+  const _UnreadBadge({required this.count, this.label});
+
+  final int count;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.error,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label ?? '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }
