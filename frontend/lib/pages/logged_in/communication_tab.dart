@@ -183,15 +183,6 @@ class _ConversationList extends StatelessWidget {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            isAdmin
-                ? 'Report response chats opened by administrators.'
-                : 'Responses to your emergency reports.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ),
         const SizedBox(height: 12),
         const Divider(height: 1),
         Expanded(

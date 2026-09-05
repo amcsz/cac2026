@@ -35,52 +35,6 @@ class ManageTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Simulate emergency',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Create fake reports from random members in this organization.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 12),
-              if (simulationError != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    simulationError!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _ScenarioButton(
-                    scenario: 'chemistry-fire',
-                    label: 'Chemistry fire',
-                    simulatingScenario: simulatingScenario,
-                    onSimulateScenario: onSimulateScenario,
-                  ),
-                  _ScenarioButton(
-                    scenario: 'gym-fainting',
-                    label: 'Gym fainting',
-                    simulatingScenario: simulatingScenario,
-                    onSimulateScenario: onSimulateScenario,
-                  ),
-                  _ScenarioButton(
-                    scenario: 'school-shooting',
-                    label: 'School shooting',
-                    simulatingScenario: simulatingScenario,
-                    onSimulateScenario: onSimulateScenario,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Divider(),
               const SizedBox(height: 24),
               Text(
                 'Organization members',

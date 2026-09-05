@@ -151,11 +151,6 @@ class _ArchiveDaysView extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Past report days. Today stays on the Alerts tab.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
         const SizedBox(height: 16),
         if (loadingDays)
           const Center(child: CircularProgressIndicator())
@@ -167,7 +162,7 @@ class _ArchiveDaysView extends StatelessWidget {
             ),
           )
         else if (days.isEmpty)
-          const Text('No archived report days yet.')
+          const Text('No archived reports yet.')
         else ...[
           ListView.separated(
             shrinkWrap: true,
