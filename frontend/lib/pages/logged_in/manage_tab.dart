@@ -151,7 +151,7 @@ class _MemberIdentity extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 member.isOwner
-                    ? 'Organization creator'
+                    ? 'Primary Administrator'
                     : member.email.isEmpty
                         ? 'No email'
                         : member.email,
