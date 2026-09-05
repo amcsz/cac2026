@@ -285,6 +285,40 @@ class OrganizationMembersView(APIView):
         target_membership.save(update_fields=["role"])
         return Response(OrganizationMembershipSerializer(target_membership).data)
 
+    def delete(self, request):
+        membership, response = _admin_membership_or_response(
+            request.user,
+            "Only administrators can remove organization members.",
+        )
+        if response is not None:
+            return response
+
+        try:
+            user_id = int(request.data.get("user_id"))
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "A valid user_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_membership = OrganizationMembership.objects.filter(
+            organization=membership.organization,
+            user_id=user_id,
+        ).first()
+        if target_membership is None:
+            return Response(
+                {"detail": "That member was not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if target_membership.organization.owner_id == target_membership.user_id:
+            return Response(
+                {"detail": "The organization owner cannot be removed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_membership.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class EmergencyReportView(APIView):
     permission_classes = [IsAuthenticated]

@@ -892,6 +892,59 @@ class _LoggedInPageState extends State<LoggedInPage> {
     }
   }
 
+  Future<void> _removeMember(OrganizationMembership member) async {
+    if (member.isOwner || _updatingRoleUserId != null) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove member'),
+        content: Text(
+          'Are you sure you want to remove ${member.username} from this organization?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _updatingRoleUserId = member.userId;
+      _memberError = null;
+    });
+
+    try {
+      await ApiClient(token: widget.token).removeOrganizationMember(
+        userId: member.userId,
+      );
+      await _loadMembers();
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _memberError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _memberError = 'Could not remove that member.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _updatingRoleUserId = null);
+      }
+    }
+  }
+
   Future<void> _submitReport() async {
     setState(() {
       _submittingReport = true;
@@ -1143,6 +1196,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
                     simulatingScenario: _simulatingScenario,
                     simulationError: _simulationError,
                     onChangeRole: _changeRole,
+                    onRemoveMember: _removeMember,
                     onSimulateScenario: _simulateEmergencyScenario,
                   ),
               ],

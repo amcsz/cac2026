@@ -161,6 +161,20 @@ class ApiClient {
     throw ApiException(_extractError(response));
   }
 
+  Future<void> removeOrganizationMember({required int userId}) async {
+    final response = await http.delete(
+      Uri.parse('${AppConfig.apiBaseUrl}/organizations/members/'),
+      headers: _headers,
+      body: jsonEncode({'user_id': userId}),
+    );
+
+    if (response.statusCode == 204) {
+      return;
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
   Future<EmergencyReport> submitEmergencyReport({
     required String emergencyType,
     required String details,

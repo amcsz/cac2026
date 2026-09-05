@@ -11,6 +11,7 @@ class ManageTab extends StatelessWidget {
     required this.simulatingScenario,
     required this.simulationError,
     required this.onChangeRole,
+    required this.onRemoveMember,
     required this.onSimulateScenario,
     super.key,
   });
@@ -23,6 +24,7 @@ class ManageTab extends StatelessWidget {
   final String? simulationError;
   final void Function(OrganizationMembership membership, String role)
       onChangeRole;
+  final Future<void> Function(OrganizationMembership membership) onRemoveMember;
   final ValueChanged<String> onSimulateScenario;
 
   @override
@@ -64,6 +66,7 @@ class ManageTab extends StatelessWidget {
                       member: member,
                       isUpdating: updatingRoleUserId == member.userId,
                       onChangeRole: onChangeRole,
+                      onRemoveMember: onRemoveMember,
                     );
                   },
                 ),
@@ -80,12 +83,14 @@ class _MemberRoleRow extends StatelessWidget {
     required this.member,
     required this.isUpdating,
     required this.onChangeRole,
+    required this.onRemoveMember,
   });
 
   final OrganizationMembership member;
   final bool isUpdating;
   final void Function(OrganizationMembership membership, String role)
       onChangeRole;
+  final Future<void> Function(OrganizationMembership membership) onRemoveMember;
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +113,14 @@ class _MemberRoleRow extends StatelessWidget {
                     _MemberIdentity(member: member),
                     const SizedBox(height: 12),
                     roleField,
+                    if (!member.isOwner) ...[
+                      const SizedBox(height: 8),
+                      _RemoveMemberButton(
+                        member: member,
+                        isUpdating: isUpdating,
+                        onRemoveMember: onRemoveMember,
+                      ),
+                    ],
                   ],
                 )
               : Row(
@@ -115,7 +128,23 @@ class _MemberRoleRow extends StatelessWidget {
                   children: [
                     Expanded(child: _MemberIdentity(member: member)),
                     const SizedBox(width: 16),
-                    SizedBox(width: 220, child: roleField),
+                    SizedBox(
+                      width: 220,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          roleField,
+                          if (!member.isOwner) ...[
+                            const SizedBox(height: 8),
+                            _RemoveMemberButton(
+                              member: member,
+                              isUpdating: isUpdating,
+                              onRemoveMember: onRemoveMember,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                 ),
         );
@@ -215,6 +244,27 @@ class _RoleField extends StatelessWidget {
                 onChangeRole(member, role);
               }
             },
+    );
+  }
+}
+
+class _RemoveMemberButton extends StatelessWidget {
+  const _RemoveMemberButton({
+    required this.member,
+    required this.isUpdating,
+    required this.onRemoveMember,
+  });
+
+  final OrganizationMembership member;
+  final bool isUpdating;
+  final Future<void> Function(OrganizationMembership membership) onRemoveMember;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: isUpdating ? null : () => onRemoveMember(member),
+      icon: const Icon(Icons.person_remove_outlined),
+      label: const Text('Remove member'),
     );
   }
 }
