@@ -40,11 +40,6 @@ class ManageTab extends StatelessWidget {
                 'Organization members',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Administrators can change roles for every member except the organization creator.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
               const SizedBox(height: 16),
               if (loadingMembers)
                 const Center(child: CircularProgressIndicator())
