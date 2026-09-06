@@ -212,6 +212,19 @@ class ApiClient {
     throw ApiException(_extractError(response));
   }
 
+  Future<void> deleteEmergencyReport({required int reportId}) async {
+    final response = await http.delete(
+      Uri.parse('${AppConfig.apiBaseUrl}/reports/$reportId/'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 204) {
+      return;
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
   Future<PaginatedResult<ReportArchiveDay>> fetchReportArchiveDays({
     int page = 1,
   }) async {

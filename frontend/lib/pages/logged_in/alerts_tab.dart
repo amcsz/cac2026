@@ -60,6 +60,17 @@ class AlertsTab extends StatelessWidget {
                 'Alerts',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
+              if (isAdmin) ...[
+                const SizedBox(height: 24),
+                _RelayGlobalMessageSection(
+                  broadcastHeadlineController: broadcastHeadlineController,
+                  broadcastMessageController: broadcastMessageController,
+                  publishingGlobalAlert: publishingGlobalAlert,
+                  publishAdminsOnly: publishAdminsOnly,
+                  onPublishGlobalAlert: onPublishGlobalAlert,
+                  onPublishAdminsOnlyChanged: onPublishAdminsOnlyChanged,
+                ),
+              ],
               const SizedBox(height: 16),
               if (isAdmin && globalAlert != null)
                 _ClearGlobalMessageButton(
@@ -78,17 +89,6 @@ class AlertsTab extends StatelessWidget {
                 onOpenReportsSidebar: onOpenReportsSidebar,
                 onVerifyIncident: onVerifyIncident,
               ),
-              if (isAdmin) ...[
-                const SizedBox(height: 24),
-                _RelayGlobalMessageSection(
-                  broadcastHeadlineController: broadcastHeadlineController,
-                  broadcastMessageController: broadcastMessageController,
-                  publishingGlobalAlert: publishingGlobalAlert,
-                  publishAdminsOnly: publishAdminsOnly,
-                  onPublishGlobalAlert: onPublishGlobalAlert,
-                  onPublishAdminsOnlyChanged: onPublishAdminsOnlyChanged,
-                ),
-              ],
             ],
           ),
         ),
@@ -315,8 +315,10 @@ class TodayReportsSidebar extends StatelessWidget {
     required this.reportsError,
     required this.reports,
     required this.respondingReportId,
+    required this.deletingReportId,
     required this.onRefresh,
     required this.onRespondToReport,
+    required this.onDeleteReport,
     required this.highlightedReportIds,
     super.key,
   });
@@ -325,8 +327,10 @@ class TodayReportsSidebar extends StatelessWidget {
   final String? reportsError;
   final List<EmergencyReport> reports;
   final int? respondingReportId;
+  final int? deletingReportId;
   final VoidCallback onRefresh;
   final ValueChanged<EmergencyReport> onRespondToReport;
+  final ValueChanged<EmergencyReport> onDeleteReport;
   final Set<int> highlightedReportIds;
 
   @override
@@ -371,8 +375,10 @@ class TodayReportsSidebar extends StatelessWidget {
                 reportsError: reportsError,
                 reports: reports,
                 respondingReportId: respondingReportId,
+                deletingReportId: deletingReportId,
                 highlightedReportIds: highlightedReportIds,
                 onRespondToReport: onRespondToReport,
+                onDeleteReport: onDeleteReport,
               ),
             ),
           ],
@@ -388,7 +394,9 @@ class _TodayReportsList extends StatelessWidget {
     required this.reportsError,
     required this.reports,
     required this.respondingReportId,
+    required this.deletingReportId,
     required this.onRespondToReport,
+    required this.onDeleteReport,
     required this.highlightedReportIds,
   });
 
@@ -396,7 +404,9 @@ class _TodayReportsList extends StatelessWidget {
   final String? reportsError;
   final List<EmergencyReport> reports;
   final int? respondingReportId;
+  final int? deletingReportId;
   final ValueChanged<EmergencyReport> onRespondToReport;
+  final ValueChanged<EmergencyReport> onDeleteReport;
   final Set<int> highlightedReportIds;
 
   @override
@@ -432,6 +442,7 @@ class _TodayReportsList extends StatelessWidget {
         final report = reports[index];
         final unread = highlightedReportIds.contains(report.id);
         final responding = respondingReportId == report.id;
+        final deleting = deletingReportId == report.id;
         final reportIcon = switch (report.emergencyType) {
           'medical' => Icons.local_hospital_rounded,
           'intruder' => Icons.security_rounded,
@@ -464,17 +475,61 @@ class _TodayReportsList extends StatelessWidget {
                 'Details: ${report.details.isEmpty ? 'No additional details provided.' : report.details}\nSent ${formatTimestamp(report.createdAt)} by ${report.reportedByUsername}',
               ),
               const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: respondingReportId == null
-                    ? () => onRespondToReport(report)
-                    : null,
-                icon: responding
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.forum_outlined),
-                label: Text(responding ? 'Opening' : 'Respond'),
+              Row(
+                children: [
+                  FilledButton.icon(
+                    onPressed:
+                        respondingReportId == null && deletingReportId == null
+                            ? () => onRespondToReport(report)
+                            : null,
+                    icon: responding
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.forum_outlined),
+                    label: Text(responding ? 'Opening' : 'Respond'),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Delete report',
+                    onPressed:
+                        respondingReportId == null && deletingReportId == null
+                            ? () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (dialogContext) => AlertDialog(
+                                    title: const Text('Delete report?'),
+                                    content: const Text(
+                                      'This report and its response chat will be permanently deleted.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(dialogContext, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () =>
+                                            Navigator.pop(dialogContext, true),
+                                        child: const Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed == true) {
+                                  onDeleteReport(report);
+                                }
+                              }
+                            : null,
+                    icon: deleting
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.delete_outline),
+                  ),
+                ],
               ),
             ],
           ),

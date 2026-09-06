@@ -348,6 +348,34 @@ class EmergencyReportView(APIView):
         return Response(EmergencyReportSerializer(report).data, status=status.HTTP_201_CREATED)
 
 
+class EmergencyReportDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, report_id):
+        membership, response = _admin_membership_or_response(
+            request.user,
+            "Only administrators can delete emergency reports.",
+        )
+        if response is not None:
+            return response
+
+        report = EmergencyReport.objects.filter(
+            id=report_id,
+            organization=membership.organization,
+            created_at__date=timezone.localdate(),
+        ).first()
+        if report is None:
+            return Response(
+                {"detail": "That report was not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        organization = report.organization
+        report.delete()
+        _refresh_summary_after_report(organization)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class ReportArchiveDaysView(APIView):
     permission_classes = [IsAuthenticated]
 

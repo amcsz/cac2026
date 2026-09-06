@@ -49,6 +49,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _loadingReports = false;
   String? _reportsError;
   List<EmergencyReport> _reports = [];
+  int? _deletingReportId;
   final Set<int> _readReportIds = {};
   final Set<int> _unreadReportIds = {};
   Set<int> _highlightedReportIds = {};
@@ -756,6 +757,43 @@ class _LoggedInPageState extends State<LoggedInPage> {
     }
   }
 
+  Future<void> _deleteReport(EmergencyReport report) async {
+    if (!_isAdmin || _deletingReportId != null) {
+      return;
+    }
+
+    setState(() {
+      _deletingReportId = report.id;
+      _reportsError = null;
+    });
+
+    try {
+      await ApiClient(token: widget.token)
+          .deleteEmergencyReport(reportId: report.id);
+      if (mounted) {
+        setState(() {
+          _reports.removeWhere((item) => item.id == report.id);
+          _readReportIds.remove(report.id);
+          _unreadReportIds.remove(report.id);
+          _highlightedReportIds.remove(report.id);
+        });
+      }
+      await _loadConversations(showLoading: false);
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _reportsError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _reportsError = 'Could not delete the report.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _deletingReportId = null);
+      }
+    }
+  }
+
   Future<void> _sendConversationMessage() async {
     final conversationId = _selectedConversationId;
     final body = _chatMessageController.text.trim();
@@ -1210,9 +1248,11 @@ class _LoggedInPageState extends State<LoggedInPage> {
               reportsError: _reportsError,
               reports: _reports,
               respondingReportId: _respondingReportId,
+              deletingReportId: _deletingReportId,
               highlightedReportIds: _highlightedReportIds,
               onRefresh: _loadReports,
               onRespondToReport: _respondToReport,
+              onDeleteReport: _deleteReport,
             )
           : null,
       bottomNavigationBar: NavigationBar(

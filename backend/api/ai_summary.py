@@ -157,6 +157,16 @@ def generate_recent_report_summary(
 
 def refresh_daily_report_summary(organization, *, verified_override=None):
     today = timezone.localdate()
+    if not EmergencyReport.objects.filter(
+        organization=organization,
+        created_at__date=today,
+    ).exists():
+        DailyAlertSummary.objects.filter(
+            organization=organization,
+            date=today,
+        ).delete()
+        return get_cached_daily_report_summary(organization)
+
     previous_summary = DailyAlertSummary.objects.filter(
         organization=organization,
         date=today,
@@ -208,7 +218,7 @@ def get_cached_daily_report_summary(organization):
 
     if cached_summary is None:
         return {
-            "headline": "No Summary Yet",
+            "headline": "",
             "summary": "No emergency summary has been generated today.",
             "draft_message": "",
             "incident_type": GlobalAlert.INCIDENT_FIRE,
