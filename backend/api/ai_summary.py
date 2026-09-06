@@ -25,6 +25,7 @@ Include timestamps for key events that happened, use a 12-hour clock, and conver
 In the case of an intruder, infer where the intruder may be to help law enforcement.
 Treat every report seriously and keep in mind that some students are typing during an emergency, so short or mispelled reports are worth exploring.
 Do not include generic advice, but short, direct instructions such as "evacuate immediately" are fine.
+Do not write that emergency services have been notified in the draft summaries.
 
 
 Specific instructions for fires:
