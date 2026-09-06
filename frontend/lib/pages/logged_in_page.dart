@@ -105,7 +105,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
   int _selectedIndex = 0;
   bool _showReportForm = false;
   int _reportStep = 0;
-  String _reportType = 'fire';
+  String? _reportType;
   bool _submittingReport = false;
   String? _reportError;
   String? _reportSuccess;
@@ -954,7 +954,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
 
     try {
       await ApiClient(token: widget.token).submitEmergencyReport(
-        emergencyType: _reportType,
+        emergencyType: _reportType!,
         details: _detailsController.text.trim(),
       );
 
@@ -962,7 +962,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
         setState(() {
           _showReportForm = false;
           _reportStep = 0;
-          _reportType = 'fire';
+          _reportType = null;
           _detailsController.clear();
           _reportSuccess = 'Emergency report submitted.';
         });
@@ -999,7 +999,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
     setState(() {
       _showReportForm = false;
       _reportStep = 0;
-      _reportType = 'fire';
+      _reportType = null;
       _detailsController.clear();
       _reportError = null;
     });

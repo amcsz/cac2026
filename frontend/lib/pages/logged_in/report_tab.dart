@@ -20,7 +20,7 @@ class ReportTab extends StatelessWidget {
 
   final bool showReportForm;
   final int reportStep;
-  final String reportType;
+  final String? reportType;
   final bool submittingReport;
   final String? reportError;
   final String? reportSuccess;
@@ -159,7 +159,6 @@ class ReportTab extends StatelessWidget {
                     subtitle: 'Fire, smoke, or explosion',
                     icon: Icons.local_fire_department_rounded,
                     color: Colors.red,
-                    selected: reportType == 'fire',
                     onTap: () {
                       onReportTypeChanged('fire');
                       onNext();
@@ -171,7 +170,6 @@ class ReportTab extends StatelessWidget {
                     subtitle: 'Injury or medical emergency',
                     icon: Icons.local_hospital_rounded,
                     color: Colors.blue,
-                    selected: reportType == 'medical',
                     onTap: () {
                       onReportTypeChanged('medical');
                       onNext();
@@ -183,7 +181,6 @@ class ReportTab extends StatelessWidget {
                     subtitle: 'Suspicious person or security threat',
                     icon: Icons.security_rounded,
                     color: Colors.black,
-                    selected: reportType == 'intruder',
                     onTap: () {
                       onReportTypeChanged('intruder');
                       onNext();
@@ -201,7 +198,7 @@ class ReportTab extends StatelessWidget {
                       _ =>
                         'Add anything important you know, including what happened, who may be affected, and any immediate hazards...',
                     },
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                     ),
@@ -301,7 +298,6 @@ class _EmergencyButton extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.color,
-    required this.selected,
     required this.onTap,
   });
 
@@ -309,13 +305,12 @@ class _EmergencyButton extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final Color color;
-  final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? color : color.withValues(alpha: 0.08),
+      color: color.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -331,7 +326,7 @@ class _EmergencyButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: color,
-              width: selected ? 3 : 2,
+              width: 2,
             ),
           ),
           child: Row(
@@ -340,8 +335,7 @@ class _EmergencyButton extends StatelessWidget {
                 width: 62,
                 height: 62,
                 decoration: BoxDecoration(
-                  color:
-                      selected ? Colors.white.withValues(alpha: 0.18) : color,
+                  color: color,
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Icon(
@@ -358,7 +352,7 @@ class _EmergencyButton extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        color: selected ? Colors.white : color,
+                        color: color,
                         fontSize: 23,
                         fontWeight: FontWeight.w900,
                       ),
@@ -367,21 +361,13 @@ class _EmergencyButton extends StatelessWidget {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: selected
-                            ? Colors.white.withValues(alpha: 0.9)
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Icon(
-                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                color: selected ? Colors.white : color,
-                size: 30,
               ),
             ],
           ),
