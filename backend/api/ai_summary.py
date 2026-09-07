@@ -106,7 +106,7 @@ def generate_recent_report_summary(
     payload = json.dumps(
         {
             "model": settings.GEMINI_MODEL,
-            "input": f"{SYSTEM_PROMPT}\n\n{PROMPT_PREFIX}{reports_text}{previous_context}",
+            "input": f"{SYSTEM_PROMPT}\nThe name of the organization is '{organization.name}, do not mention it but use it when inferring the type of people (if it's a senior center you clearly can't say a student made a report).'\n\n{PROMPT_PREFIX}{reports_text}{previous_context}",
         }
     ).encode("utf-8")
 
