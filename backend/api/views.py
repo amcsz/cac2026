@@ -12,7 +12,6 @@ from .ai_summary import (
     AiSummaryUnavailable,
     get_cached_daily_report_summary,
     refresh_daily_report_summary,
-    verify_daily_report_summary,
 )
 from .models import (
     ArchiveDay,
@@ -642,17 +641,6 @@ class AlertSummaryView(APIView):
             )
 
         return Response(get_cached_daily_report_summary(membership.organization))
-
-    def post(self, request):
-        membership, response = _admin_membership_or_response(
-            request.user,
-            "Only administrators can verify incidents.",
-        )
-        if response is not None:
-            return response
-
-        return Response(verify_daily_report_summary(membership.organization))
-
 
 class GlobalAlertView(APIView):
     permission_classes = [IsAuthenticated]

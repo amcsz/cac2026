@@ -70,7 +70,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _archiveEventsHasPrevious = false;
 
   bool _loadingAlertSummary = false;
-  bool _verifyingIncident = false;
   String? _alertSummaryError;
   AlertSummary? _alertSummary;
   String? _lastAlertSummaryGeneratedAt;
@@ -425,42 +424,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
 
     final preferences = await SharedPreferences.getInstance();
     return preferences.getString(_acknowledgedSummaryKey);
-  }
-
-  Future<void> _verifyIncident() async {
-    if (!_isAdmin || _verifyingIncident) {
-      return;
-    }
-
-    setState(() {
-      _verifyingIncident = true;
-      _alertSummaryError = null;
-    });
-
-    try {
-      final summary = await ApiClient(token: widget.token).verifyAlertSummary();
-      if (mounted) {
-        setState(() {
-          _alertSummary = summary;
-          _lastAlertSummaryGeneratedAt = summary.generatedAt;
-          _broadcastHeadlineController.text = summary.headline;
-          _broadcastMessageController.text = summary.draftMessage;
-          _publishAdminsOnly = summary.incidentType == 'medical';
-        });
-      }
-    } on ApiException catch (error) {
-      if (mounted) {
-        setState(() => _alertSummaryError = error.message);
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() => _alertSummaryError = 'Could not verify incident.');
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _verifyingIncident = false);
-      }
-    }
   }
 
   Future<void> _acknowledgeUrgentSummaryNotice() async {
@@ -1158,7 +1121,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   loadingAlertSummary: _loadingAlertSummary,
                   alertSummaryError: _alertSummaryError,
                   alertSummary: _alertSummary,
-                  verifyingIncident: _verifyingIncident,
                   broadcastHeadlineController: _broadcastHeadlineController,
                   broadcastMessageController: _broadcastMessageController,
                   publishingGlobalAlert: _publishingGlobalAlert,
@@ -1167,7 +1129,6 @@ class _LoggedInPageState extends State<LoggedInPage> {
                   todayReportCount: _reports.length,
                   unreadReportCount: _unreadReportIds.length,
                   onOpenReportsSidebar: _openTodayReportsSidebar,
-                  onVerifyIncident: _verifyIncident,
                   onPublishGlobalAlert: _publishGlobalAlert,
                   onPublishAdminsOnlyChanged: (value) {
                     setState(() => _publishAdminsOnly = value);

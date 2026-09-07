@@ -42,10 +42,8 @@ Do NOT say that help was requested or anything about who is going to help becaus
 Return only valid JSON with these fields:
 incident_type: exactly "fire", "intruder", or "medical". If there are mixed reports choose the emergency type with the most attention. If medical reports are clearly the result of a fire or intruder, classify as fire or intruder instead.
 same_incident: true or false. When prior summary context is provided, return true only if these reports describe the same incident as that prior summary.
-needs_verification: true or false. Return true only when the incident type is intruder and the incident has not been verified. Return false otherwise.
 summary: concise summary for admins, return plain text. Include main facts first, then lower-priority contradictions/unclear details. include newlines to increase readability.
 draft_message: concise message admins can send to everyone. It should give immediate action instructions without overclaiming unverified details. make the headline as short as possible and DO NOT include dates or other details that can be put later in the headline. The headline is defined as the first line in the summary. Make sure it is 5 words or less, use punctuation to shorten if needed.
-If needs_verification is true, explicitly say in the draft that the intruder report is not verified yet. Else, if needs_verification is false and it's an intruder incident, explicitly say that it is POSSIBLE that there is an intruder. do NOT confirm that there is one, only say that it is POSSIBLE.
 """
 
 PROMPT_PREFIX = (
@@ -62,7 +60,6 @@ def generate_recent_report_summary(
     organization,
     *,
     previous_summary=None,
-    verified_override=None,
 ):
     today = timezone.localdate()
     reports = (
@@ -82,8 +79,6 @@ def generate_recent_report_summary(
             "summary": "**No emergency reports** today.\n\nContradictions/unclear: None\nPossible abuse: None",
             "draft_message": "**No active emergency reports** have been submitted today.",
             "incident_type": GlobalAlert.INCIDENT_FIRE,
-            "verified": False,
-            "needs_verification": False,
             "report_count": 0,
             "generated_at": timezone.now(),
             "window_hours": 24,
@@ -99,11 +94,10 @@ def generate_recent_report_summary(
     if previous_summary is not None:
         previous_context = (
             "\n\nPrevious cached summary context (use only to determine whether this is "
-            "the same incident and whether verification carries forward):\n"
+            "the same incident):\n"
             f"incident_type: {previous_summary.incident_type}\n"
             f"headline: {previous_summary.headline}\n"
             f"summary: {previous_summary.summary}\n"
-            f"verified: {str(previous_summary.verified).lower()}\n"
         )
 
     payload = json.dumps(
@@ -126,27 +120,10 @@ def generate_recent_report_summary(
             _error_message("Gemini interactions request", exc),
         )
         fallback = _fallback_summary(report_list, exc)
-        fallback["verified"] = bool(verified_override)
-        fallback["needs_verification"] = (
-            fallback["incident_type"] == GlobalAlert.INCIDENT_INTRUDER
-            and not fallback["verified"]
-        )
         return fallback
 
     content = _extract_ai_content(decoded)
-    same_incident = content.pop("same_incident", False)
-    verified = bool(verified_override) if verified_override is not None else (
-        bool(previous_summary and previous_summary.verified and same_incident)
-    )
-    content["verified"] = verified
-    content["needs_verification"] = (
-        content["incident_type"] == GlobalAlert.INCIDENT_INTRUDER and not verified
-    )
-    if content["needs_verification"] and "not verified" not in content["draft_message"].lower():
-        content["draft_message"] = (
-            "**Unverified intruder report:** administrators must verify this incident. "
-            + content["draft_message"]
-        )
+    content.pop("same_incident", False)
 
     if not content["summary"]:
         raise AiSummaryUnavailable("Gemini returned an empty response.")
@@ -160,7 +137,7 @@ def generate_recent_report_summary(
     }
 
 
-def refresh_daily_report_summary(organization, *, verified_override=None):
+def refresh_daily_report_summary(organization):
     today = timezone.localdate()
     if not EmergencyReport.objects.filter(
         organization=organization,
@@ -179,7 +156,6 @@ def refresh_daily_report_summary(organization, *, verified_override=None):
     summary = generate_recent_report_summary(
         organization,
         previous_summary=previous_summary,
-        verified_override=verified_override,
     )
     cached_summary, _ = DailyAlertSummary.objects.update_or_create(
         organization=organization,
@@ -189,30 +165,12 @@ def refresh_daily_report_summary(organization, *, verified_override=None):
             "summary": summary["summary"],
             "draft_message": summary["draft_message"],
             "incident_type": summary["incident_type"],
-            "verified": summary["verified"],
-            "needs_verification": summary["needs_verification"],
             "report_count": summary["report_count"],
             "generated_at": summary["generated_at"],
             "ai_unavailable": summary.get("ai_unavailable", False),
         },
     )
     return cached_daily_report_summary_payload(cached_summary)
-
-
-def verify_daily_report_summary(organization):
-    today = timezone.localdate()
-    summary = DailyAlertSummary.objects.filter(
-        organization=organization,
-        date=today,
-    ).first()
-    if summary is None:
-        return get_cached_daily_report_summary(organization)
-
-    summary.verified = True
-    summary.needs_verification = False
-    summary.save(update_fields=["verified", "needs_verification"])
-    return refresh_daily_report_summary(organization, verified_override=True)
-
 
 def get_cached_daily_report_summary(organization):
     today = timezone.localdate()
@@ -227,8 +185,6 @@ def get_cached_daily_report_summary(organization):
             "summary": "No emergency summary has been generated today.",
             "draft_message": "",
             "incident_type": GlobalAlert.INCIDENT_FIRE,
-            "verified": False,
-            "needs_verification": False,
             "report_count": 0,
             "generated_at": None,
             "window_hours": 24,
@@ -244,8 +200,6 @@ def cached_daily_report_summary_payload(cached_summary):
         "summary": cached_summary.summary,
         "draft_message": cached_summary.draft_message,
         "incident_type": cached_summary.incident_type,
-        "verified": cached_summary.verified,
-        "needs_verification": cached_summary.needs_verification,
         "report_count": cached_summary.report_count,
         "generated_at": cached_summary.generated_at,
         "window_hours": 24,
@@ -431,7 +385,6 @@ def _extract_ai_content(decoded):
         ),
         "incident_type": incident_type,
         "same_incident": same_incident,
-        "needs_verification": _as_bool(parsed.get("needs_verification", False)),
     }
 
 
@@ -488,12 +441,6 @@ def _fallback_summary(reports, error):
         "**Emergency reported.** Follow staff instructions, avoid any affected area, "
         "and wait for confirmed updates."
     )
-    if incident_type == GlobalAlert.INCIDENT_INTRUDER:
-        draft_message = (
-            "**Unverified intruder report:** administrators must verify this incident. "
-            + draft_message
-        )
-
     return {
         "headline": headline,
         "incident_type": incident_type,

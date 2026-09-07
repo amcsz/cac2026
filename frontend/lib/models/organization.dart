@@ -108,8 +108,6 @@ class AlertSummary {
     required this.summary,
     required this.draftMessage,
     required this.incidentType,
-    required this.verified,
-    required this.needsVerification,
     required this.reportCount,
     required this.generatedAt,
     required this.windowHours,
@@ -119,8 +117,6 @@ class AlertSummary {
   final String summary;
   final String draftMessage;
   final String incidentType;
-  final bool verified;
-  final bool needsVerification;
   final int reportCount;
   final String generatedAt;
   final int windowHours;
@@ -131,8 +127,6 @@ class AlertSummary {
       summary: json['summary'] as String? ?? '',
       draftMessage: json['draft_message'] as String? ?? '',
       incidentType: json['incident_type'] as String? ?? 'fire',
-      verified: json['verified'] as bool? ?? false,
-      needsVerification: json['needs_verification'] as bool? ?? false,
       reportCount: json['report_count'] as int? ?? 0,
       generatedAt: json['generated_at'] as String? ?? '',
       windowHours: json['window_hours'] as int? ?? 24,

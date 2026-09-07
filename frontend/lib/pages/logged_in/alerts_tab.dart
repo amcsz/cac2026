@@ -11,7 +11,6 @@ class AlertsTab extends StatelessWidget {
     required this.loadingAlertSummary,
     required this.alertSummaryError,
     required this.alertSummary,
-    required this.verifyingIncident,
     required this.broadcastHeadlineController,
     required this.broadcastMessageController,
     required this.publishingGlobalAlert,
@@ -20,7 +19,6 @@ class AlertsTab extends StatelessWidget {
     required this.todayReportCount,
     required this.unreadReportCount,
     required this.onOpenReportsSidebar,
-    required this.onVerifyIncident,
     required this.onPublishGlobalAlert,
     required this.onPublishAdminsOnlyChanged,
     required this.onClearGlobalAlert,
@@ -32,7 +30,6 @@ class AlertsTab extends StatelessWidget {
   final bool loadingAlertSummary;
   final String? alertSummaryError;
   final AlertSummary? alertSummary;
-  final bool verifyingIncident;
   final TextEditingController broadcastHeadlineController;
   final TextEditingController broadcastMessageController;
   final bool publishingGlobalAlert;
@@ -41,7 +38,6 @@ class AlertsTab extends StatelessWidget {
   final int todayReportCount;
   final int unreadReportCount;
   final VoidCallback onOpenReportsSidebar;
-  final VoidCallback onVerifyIncident;
   final VoidCallback onPublishGlobalAlert;
   final ValueChanged<bool> onPublishAdminsOnlyChanged;
   final VoidCallback onClearGlobalAlert;
@@ -83,11 +79,9 @@ class AlertsTab extends StatelessWidget {
                 loadingAlertSummary: loadingAlertSummary,
                 alertSummaryError: alertSummaryError,
                 alertSummary: alertSummary,
-                verifyingIncident: verifyingIncident,
                 todayReportCount: todayReportCount,
                 unreadReportCount: unreadReportCount,
                 onOpenReportsSidebar: onOpenReportsSidebar,
-                onVerifyIncident: onVerifyIncident,
               ),
             ],
           ),
@@ -130,22 +124,18 @@ class _EmergencySummarySection extends StatelessWidget {
     required this.loadingAlertSummary,
     required this.alertSummaryError,
     required this.alertSummary,
-    required this.verifyingIncident,
     required this.todayReportCount,
     required this.unreadReportCount,
     required this.onOpenReportsSidebar,
-    required this.onVerifyIncident,
   });
 
   final bool isAdmin;
   final bool loadingAlertSummary;
   final String? alertSummaryError;
   final AlertSummary? alertSummary;
-  final bool verifyingIncident;
   final int todayReportCount;
   final int unreadReportCount;
   final VoidCallback onOpenReportsSidebar;
-  final VoidCallback onVerifyIncident;
 
   @override
   Widget build(BuildContext context) {
@@ -180,21 +170,6 @@ class _EmergencySummarySection extends StatelessWidget {
             'Based on ${alertSummary!.reportCount} report(s) from today.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          if (isAdmin && alertSummary!.needsVerification) ...[
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: verifyingIncident ? null : onVerifyIncident,
-              icon: verifyingIncident
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.verified_outlined),
-              label: Text(
-                verifyingIncident ? 'Verifying' : 'Verify incident',
-              ),
-            ),
-          ],
           if (isAdmin) ...[
             const SizedBox(height: 16),
             OutlinedButton.icon(

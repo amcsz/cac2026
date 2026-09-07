@@ -217,11 +217,8 @@ class GlobalAlert(models.Model):
 
 
 class DailyAlertSummary(models.Model):
-    INCIDENT_MEDICAL = "medical"
-    INCIDENT_CHOICES = [
-        *GlobalAlert.INCIDENT_CHOICES,
-        (INCIDENT_MEDICAL, "Medical"),
-    ]
+    INCIDENT_MEDICAL = GlobalAlert.INCIDENT_MEDICAL
+    INCIDENT_CHOICES = GlobalAlert.INCIDENT_CHOICES
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
@@ -236,8 +233,6 @@ class DailyAlertSummary(models.Model):
         choices=INCIDENT_CHOICES,
         default=GlobalAlert.INCIDENT_FIRE,
     )
-    verified = models.BooleanField(default=False)
-    needs_verification = models.BooleanField(default=False)
     report_count = models.PositiveIntegerField(default=0)
     generated_at = models.DateTimeField(default=timezone.now)
     ai_unavailable = models.BooleanField(default=False)
