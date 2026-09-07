@@ -26,6 +26,7 @@ In the case of an intruder, infer where the intruder may be to help law enforcem
 Treat every report seriously and keep in mind that some students are typing during an emergency, so short or mispelled reports are worth exploring.
 Do not include generic advice, but short, direct instructions such as "evacuate immediately" are fine.
 Do not write that emergency services have been notified in the draft summaries.
+Do not jump to conclusions from linking together multiple reports with different evidence and only conclude they are the same if they agree 100%. For example, if one report says they heard gunshots, and another says they saw a gunman in the hallway, DO NOT conclude that the gunshots were heard in the hallway. However, you can say that there were possible gunshots and that a gunman was seen in the hallway, as two seperate conditions.
 
 
 Specific instructions for fires:
