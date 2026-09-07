@@ -40,7 +40,7 @@ Do NOT say that medical assistance is required and that the location is unconfir
 Do NOT say that help was requested or anything about who is going to help because admins will respond automatically.
 
 Specific instructions for intruder:
-In the draft message, tell people to follow emergency procedures and shelter in place.
+In the draft message, tell people to follow emergency procedures and shelter in place. Avoid using the word "evacuate"
 
 Return only valid JSON with these fields:
 incident_type: exactly "fire", "intruder", or "medical". If there are mixed reports choose the emergency type with the most attention. If medical reports are clearly the result of a fire or intruder, classify as fire or intruder instead.
