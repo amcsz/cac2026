@@ -36,6 +36,7 @@ Specific instructions for medical emergencies:
 Write the draft message to be targeted towards administrators only. 
 Include, where, what, and any other details the user sent if possible.
 If the user is in a distressed state include details on what their current situation (if their leg is stuck, they can't get up, etc), but only based on what they said. Don't say things that are too generic, such as "individual is down"
+Do NOT say that medical assistance is required and that the location is unconfirmed. 
 
 Return only valid JSON with these fields:
 incident_type: exactly "fire", "intruder", or "medical". If there are mixed reports choose the emergency type with the most attention. If medical reports are clearly the result of a fire or intruder, classify as fire or intruder instead.
