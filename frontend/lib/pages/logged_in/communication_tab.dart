@@ -416,7 +416,7 @@ class _ConversationHeader extends StatelessWidget {
   }
 }
 
-class _MessagesBody extends StatelessWidget {
+class _MessagesBody extends StatefulWidget {
   const _MessagesBody({
     required this.loadingMessages,
     required this.messagesError,
@@ -430,22 +430,74 @@ class _MessagesBody extends StatelessWidget {
   final Set<int> highlightedMessageIds;
 
   @override
+  State<_MessagesBody> createState() => _MessagesBodyState();
+}
+
+class _MessagesBodyState extends State<_MessagesBody> {
+  final ScrollController _scrollController = ScrollController();
+
+  int? get _lastMessageId =>
+      widget.messages.isEmpty ? null : widget.messages.last.id;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.messages.isNotEmpty) {
+      _scheduleScrollToBottom(animate: false);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _MessagesBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldLastMessageId =
+        oldWidget.messages.isEmpty ? null : oldWidget.messages.last.id;
+    if (_lastMessageId != null && _lastMessageId != oldLastMessageId) {
+      _scheduleScrollToBottom(animate: oldLastMessageId != null);
+    }
+  }
+
+  void _scheduleScrollToBottom({required bool animate}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) {
+        return;
+      }
+      final bottom = _scrollController.position.maxScrollExtent;
+      if (animate) {
+        _scrollController.animateTo(
+          bottom,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _scrollController.jumpTo(bottom);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (loadingMessages) {
+    if (widget.loadingMessages) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (messagesError != null) {
+    if (widget.messagesError != null) {
       return Padding(
         padding: const EdgeInsets.all(20),
         child: Text(
-          messagesError!,
+          widget.messagesError!,
           style: TextStyle(color: Theme.of(context).colorScheme.error),
         ),
       );
     }
 
-    if (messages.isEmpty) {
+    if (widget.messages.isEmpty) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(24),
@@ -455,13 +507,14 @@ class _MessagesBody extends StatelessWidget {
     }
 
     return ListView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.all(16),
-      itemCount: messages.length,
+      itemCount: widget.messages.length,
       itemBuilder: (context, index) {
-        final message = messages[index];
+        final message = widget.messages[index];
         return _MessageBubble(
           message: message,
-          highlighted: highlightedMessageIds.contains(message.id),
+          highlighted: widget.highlightedMessageIds.contains(message.id),
         );
       },
     );
