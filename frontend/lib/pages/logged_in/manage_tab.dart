@@ -8,8 +8,10 @@ class ManageTab extends StatelessWidget {
     required this.memberError,
     required this.members,
     required this.updatingRoleUserId,
+    required this.refreshingAlertSummary,
     required this.simulatingScenario,
     required this.simulationError,
+    required this.onRefreshAlertSummary,
     required this.onChangeRole,
     required this.onRemoveMember,
     required this.onSimulateScenario,
@@ -20,8 +22,10 @@ class ManageTab extends StatelessWidget {
   final String? memberError;
   final List<OrganizationMembership> members;
   final int? updatingRoleUserId;
+  final bool refreshingAlertSummary;
   final String? simulatingScenario;
   final String? simulationError;
+  final VoidCallback onRefreshAlertSummary;
   final void Function(OrganizationMembership membership, String role)
       onChangeRole;
   final Future<void> Function(OrganizationMembership membership) onRemoveMember;
@@ -37,6 +41,26 @@ class ManageTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Alert tools',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed:
+                    refreshingAlertSummary ? null : onRefreshAlertSummary,
+                icon: refreshingAlertSummary
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                label: Text(
+                  refreshingAlertSummary
+                      ? 'Refreshing summary'
+                      : 'Refresh summary and drafts',
+                ),
+              ),
               const SizedBox(height: 24),
               Text(
                 'Organization members',
@@ -265,37 +289,6 @@ class _RemoveMemberButton extends StatelessWidget {
       onPressed: isUpdating ? null : () => onRemoveMember(member),
       icon: const Icon(Icons.person_remove_outlined),
       label: const Text('Remove member'),
-    );
-  }
-}
-
-class _ScenarioButton extends StatelessWidget {
-  const _ScenarioButton({
-    required this.scenario,
-    required this.label,
-    required this.simulatingScenario,
-    required this.onSimulateScenario,
-  });
-
-  final String scenario;
-  final String label;
-  final String? simulatingScenario;
-  final ValueChanged<String> onSimulateScenario;
-
-  @override
-  Widget build(BuildContext context) {
-    final isLoading = simulatingScenario == scenario;
-    final isDisabled = simulatingScenario != null;
-
-    return FilledButton.icon(
-      onPressed: isDisabled ? null : () => onSimulateScenario(scenario),
-      icon: isLoading
-          ? const SizedBox.square(
-              dimension: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.bolt),
-      label: Text(isLoading ? 'Creating' : label),
     );
   }
 }

@@ -70,6 +70,7 @@ class _LoggedInPageState extends State<LoggedInPage> {
   bool _archiveEventsHasPrevious = false;
 
   bool _loadingAlertSummary = false;
+  bool _refreshingAlertSummary = false;
   String? _alertSummaryError;
   AlertSummary? _alertSummary;
   String? _lastAlertSummaryGeneratedAt;
@@ -424,6 +425,48 @@ class _LoggedInPageState extends State<LoggedInPage> {
 
     final preferences = await SharedPreferences.getInstance();
     return preferences.getString(_acknowledgedSummaryKey);
+  }
+
+  Future<void> _refreshAlertSummaryAndDrafts() async {
+    if (!_isAdmin || _refreshingAlertSummary) {
+      return;
+    }
+
+    setState(() {
+      _refreshingAlertSummary = true;
+      _alertSummaryError = null;
+    });
+
+    try {
+      final summary =
+          await ApiClient(token: widget.token).refreshAlertSummary();
+      if (mounted) {
+        setState(() {
+          _alertSummary = summary;
+          _lastAlertSummaryGeneratedAt = summary.generatedAt.isEmpty
+              ? _lastAlertSummaryGeneratedAt
+              : summary.generatedAt;
+          _broadcastHeadlineController.text = summary.headline;
+          _broadcastMessageController.text = summary.draftMessage;
+          _publishAdminsOnly = summary.incidentType == 'medical';
+          _urgentSummaryNoticeVisible = false;
+        });
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _alertSummaryError = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _alertSummaryError = 'Could not refresh alert summary.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _refreshingAlertSummary = false);
+      }
+    }
   }
 
   Future<void> _acknowledgeUrgentSummaryNotice() async {
@@ -1192,8 +1235,10 @@ class _LoggedInPageState extends State<LoggedInPage> {
                     memberError: _memberError,
                     members: _members,
                     updatingRoleUserId: _updatingRoleUserId,
+                    refreshingAlertSummary: _refreshingAlertSummary,
                     simulatingScenario: _simulatingScenario,
                     simulationError: _simulationError,
+                    onRefreshAlertSummary: _refreshAlertSummaryAndDrafts,
                     onChangeRole: _changeRole,
                     onRemoveMember: _removeMember,
                     onSimulateScenario: _simulateEmergencyScenario,

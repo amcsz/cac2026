@@ -642,6 +642,24 @@ class AlertSummaryView(APIView):
 
         return Response(get_cached_daily_report_summary(membership.organization))
 
+    def post(self, request):
+        membership, response = _admin_membership_or_response(
+            request.user,
+            "Only administrators can refresh alert summaries.",
+        )
+        if response is not None:
+            return response
+
+        try:
+            return Response(refresh_daily_report_summary(membership.organization))
+        except AiSummaryUnavailable as exc:
+            logger.warning("Could not refresh daily alert summary: %s", exc)
+            return Response(
+                {"detail": "Could not refresh alert summary right now."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+
 class GlobalAlertView(APIView):
     permission_classes = [IsAuthenticated]
 

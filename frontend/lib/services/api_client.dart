@@ -298,6 +298,21 @@ class ApiClient {
     throw ApiException(_extractError(response));
   }
 
+  Future<AlertSummary> refreshAlertSummary() async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/alerts/summary/'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return AlertSummary.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+      );
+    }
+
+    throw ApiException(_extractError(response));
+  }
+
   Future<GlobalAlert?> fetchGlobalAlert() async {
     final response = await http.get(
       Uri.parse('${AppConfig.apiBaseUrl}/alerts/global/'),
