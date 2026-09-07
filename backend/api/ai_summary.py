@@ -40,7 +40,7 @@ incident_type: exactly "fire", "intruder", or "medical". If there are mixed repo
 same_incident: true or false. When prior summary context is provided, return true only if these reports describe the same incident as that prior summary.
 needs_verification: true or false. Return true only when the incident type is intruder and the incident has not been verified. Return false otherwise.
 summary: concise summary for admins, return plain text. Include main facts first, then lower-priority contradictions/unclear details. include newlines to increase readability.
-draft_message: concise markdown message admins can send to everyone. It should give immediate action instructions without overclaiming unverified details. make the headline as short as possible and DO NOT include dates or other details that can be put later.
+draft_message: concise markdown message admins can send to everyone. It should give immediate action instructions without overclaiming unverified details. make the headline as short as possible and DO NOT include dates or other details that can be put later in the headline. The headline is defined as the first line in the summary. Make sure it is 5 words or less, use punctuation to shorten if needed.
 If needs_verification is true, explicitly say in the draft that the intruder report is not verified yet. Else, if needs_verification is false and it's an intruder incident, explicitly say that it is POSSIBLE that there is an intruder. do NOT confirm that there is one, only say that it is POSSIBLE.
 """
 
